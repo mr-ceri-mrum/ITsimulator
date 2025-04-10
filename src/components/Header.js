@@ -28,13 +28,23 @@ const Header = () => {
           <button 
             onClick={togglePause}
             className={isPaused ? 'play-button' : 'pause-button'}
+            style={{ 
+              fontWeight: 'bold', 
+              backgroundColor: isPaused ? '#27ae60' : '#e74c3c',
+              padding: '8px 16px',
+              fontSize: '1em'
+            }}
           >
-            {isPaused ? 'Play' : 'Pause'}
+            {isPaused ? '▶ Play' : '❚❚ Pause'}
           </button>
           
           <button 
             onClick={() => setGameSpeed(1)}
             className={gameSpeed === 1 ? 'active' : ''}
+            style={{ 
+              fontWeight: gameSpeed === 1 ? 'bold' : 'normal',
+              backgroundColor: gameSpeed === 1 ? '#3498db' : '#95a5a6'
+            }}
           >
             1x
           </button>
@@ -42,6 +52,10 @@ const Header = () => {
           <button 
             onClick={() => setGameSpeed(2)}
             className={gameSpeed === 2 ? 'active' : ''}
+            style={{ 
+              fontWeight: gameSpeed === 2 ? 'bold' : 'normal',
+              backgroundColor: gameSpeed === 2 ? '#3498db' : '#95a5a6'
+            }}
           >
             2x
           </button>
@@ -49,12 +63,24 @@ const Header = () => {
           <button 
             onClick={() => setGameSpeed(4)}
             className={gameSpeed === 4 ? 'active' : ''}
+            style={{ 
+              fontWeight: gameSpeed === 4 ? 'bold' : 'normal',
+              backgroundColor: gameSpeed === 4 ? '#3498db' : '#95a5a6'
+            }}
           >
             4x
           </button>
         </div>
         
-        <div className="date-display">
+        <div className="date-display" style={{ 
+          fontSize: '1.2em', 
+          fontWeight: 'bold',
+          padding: '8px 16px',
+          backgroundColor: '#34495e',
+          borderRadius: '4px',
+          color: 'white',
+          marginLeft: '10px'
+        }}>
           {formatMonthYear(currentDate)}
         </div>
       </div>
