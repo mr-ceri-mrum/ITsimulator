@@ -2,6 +2,9 @@ import { create } from 'zustand';
 import { generateRandomCompanies } from '../utils/aiCompanies';
 import { getProductRequirements } from '../utils/productRequirements';
 
+// Maximum global population
+const MAX_GLOBAL_POPULATION = 8000000000; // 8 billion people
+
 export const useGameStore = create((set, get) => ({
   // Game state
   gameStarted: false,
@@ -244,8 +247,29 @@ export const useGameStore = create((set, get) => ({
       const newDate = new Date(state.currentDate);
       newDate.setMonth(newDate.getMonth() + 1);
       
-      // Increase potential global user base by ~83M per month (1B per year)
-      const newPotentialUsers = state.potentialUsers + 83333333;
+      // Increase potential global user base, capped at MAX_GLOBAL_POPULATION
+      // Growth of ~250M per year (about 20.8M per month)
+      const newPotentialUsers = Math.min(
+        MAX_GLOBAL_POPULATION, 
+        state.potentialUsers + 20800000
+      );
+      
+      // Calculate total active users across all companies
+      let totalActiveUsers = 0;
+      
+      // Count users from player's products
+      state.company.products.forEach(product => {
+        if (!product.isInDevelopment) {
+          totalActiveUsers += product.users;
+        }
+      });
+      
+      // Count users from AI companies
+      state.competitors.forEach(competitor => {
+        competitor.products.forEach(product => {
+          totalActiveUsers += product.users;
+        });
+      });
       
       // Process product users and financials
       let monthlyIncome = 0;
@@ -281,25 +305,31 @@ export const useGameStore = create((set, get) => ({
           // Calculate user growth based on quality
           let monthlyGrowthRate = 0;
           switch (updatedQuality) {
-            case 10: monthlyGrowthRate = 0.3; break;
-            case 9: monthlyGrowthRate = 0.28; break;
-            case 8: monthlyGrowthRate = 0.22; break;
-            case 7: monthlyGrowthRate = 0.18; break;
-            case 6: monthlyGrowthRate = 0.02; break;
-            case 5: monthlyGrowthRate = -0.02; break;
-            case 4: monthlyGrowthRate = -0.2; break;
-            case 3: monthlyGrowthRate = -0.35; break;
-            case 2: monthlyGrowthRate = -0.55; break;
-            case 1: monthlyGrowthRate = -0.65; break;
+            case 10: monthlyGrowthRate = 0.1; break;  // Reduced from 0.3
+            case 9: monthlyGrowthRate = 0.08; break;  // Reduced from 0.28
+            case 8: monthlyGrowthRate = 0.06; break;  // Reduced from 0.22
+            case 7: monthlyGrowthRate = 0.04; break;  // Reduced from 0.18
+            case 6: monthlyGrowthRate = 0.01; break;  // Reduced from 0.02
+            case 5: monthlyGrowthRate = -0.01; break; // Reduced from -0.02
+            case 4: monthlyGrowthRate = -0.05; break; // Reduced from -0.2
+            case 3: monthlyGrowthRate = -0.1; break;  // Reduced from -0.35
+            case 2: monthlyGrowthRate = -0.15; break; // Reduced from -0.55
+            case 1: monthlyGrowthRate = -0.2; break;  // Reduced from -0.65
             default: monthlyGrowthRate = 0;
           }
           
           // Apply growth rate
           newUsers = Math.floor(newUsers * (1 + monthlyGrowthRate));
           
-          // Add users from marketing
+          // Add users from marketing, but with diminishing returns based on market saturation
           if (state.company.marketingBudget > 0) {
-            const newUsersFromMarketing = Math.floor(state.company.marketingBudget / 5);
+            // Calculate market saturation factor (0-1, where 1 means no saturation)
+            const marketSaturation = 1 - Math.min(1, totalActiveUsers / newPotentialUsers);
+            
+            // Apply diminishing returns to marketing based on saturation
+            const marketingEffectiveness = 5 * marketSaturation;
+            const newUsersFromMarketing = Math.floor(state.company.marketingBudget / marketingEffectiveness);
+            
             newUsers += newUsersFromMarketing;
           }
           
@@ -315,7 +345,9 @@ export const useGameStore = create((set, get) => ({
           monthlyIncome += productRevenue;
           
           // Cap user growth by total available market
-          newUsers = Math.min(newUsers, state.potentialUsers);
+          // Each product can capture at most 40% of the potential market
+          const productMarketCap = newPotentialUsers * 0.4;
+          newUsers = Math.min(newUsers, productMarketCap);
           
           return {
             ...product,
@@ -370,33 +402,38 @@ export const useGameStore = create((set, get) => ({
         
         const updatedProducts = competitor.products.map(product => {
           // Random chance to improve product
-          const shouldImprove = Math.random() < 0.3;
+          const shouldImprove = Math.random() < 0.1; // Reduced from 0.3
           let quality = product.quality;
           
           if (shouldImprove) {
             quality = Math.min(10, quality + 1);
-          } else if (Math.random() < 0.1) {
+          } else if (Math.random() < 0.05) { // Reduced from 0.1
             // Random chance of degradation
             quality = Math.max(1, quality - 1);
           }
           
-          // Update users based on quality
+          // Update users based on quality - using the same reduced growth rates as player
           let growthRate = 0;
           switch (quality) {
-            case 10: growthRate = 0.3; break;
-            case 9: growthRate = 0.28; break;
-            case 8: growthRate = 0.22; break;
-            case 7: growthRate = 0.18; break;
-            case 6: growthRate = 0.02; break;
-            case 5: growthRate = -0.02; break;
-            case 4: growthRate = -0.2; break;
-            case 3: growthRate = -0.35; break;
-            case 2: growthRate = -0.55; break;
-            case 1: growthRate = -0.65; break;
+            case 10: growthRate = 0.1; break;
+            case 9: growthRate = 0.08; break;
+            case 8: growthRate = 0.06; break;
+            case 7: growthRate = 0.04; break;
+            case 6: growthRate = 0.01; break;
+            case 5: growthRate = -0.01; break;
+            case 4: growthRate = -0.05; break;
+            case 3: growthRate = -0.1; break;
+            case 2: growthRate = -0.15; break;
+            case 1: growthRate = -0.2; break;
             default: growthRate = 0;
           }
           
-          const newUsers = Math.max(0, Math.floor(product.users * (1 + growthRate)));
+          // Calculate new users with growth rate
+          let newUsers = Math.max(0, Math.floor(product.users * (1 + growthRate)));
+          
+          // Cap users at 30% of potential market to prevent domination
+          const aiMarketCap = newPotentialUsers * 0.3; 
+          newUsers = Math.min(newUsers, aiMarketCap);
           
           return {
             ...product,
@@ -405,21 +442,22 @@ export const useGameStore = create((set, get) => ({
           };
         });
         
-        // Random chance to add a new product
+        // Random chance to add a new product - reduced from 0.05 to 0.01
         let finalProducts = [...updatedProducts];
-        if (Math.random() < 0.05) {
+        if (Math.random() < 0.01) {
           const productTypes = [
             'search', 'video', 'social', 'mobileOS', 'desktopOS', 
             'smartphone', 'console', 'cloud', 'ridesharing', 'ecommerce',
             'ai', 'messenger', 'office', 'antivirus', 'database', 'devtools'
           ];
           
+          // Start with fewer users (max 100k instead of 1M)
           const newProduct = {
             id: Date.now() + Math.random(),
             type: productTypes[Math.floor(Math.random() * productTypes.length)],
             name: `${competitor.name} ${productTypes[Math.floor(Math.random() * productTypes.length)]}`,
-            quality: Math.floor(Math.random() * 6) + 3, // 3-8 quality
-            users: Math.floor(Math.random() * 1000000),
+            quality: Math.floor(Math.random() * 4) + 2, // 2-5 quality (was 3-8)
+            users: Math.floor(Math.random() * 100000), // 0-100k users (was 0-1M)
             launchDate: new Date(newDate)
           };
           
