@@ -22,10 +22,10 @@ const GameInterface = () => {
   useEffect(() => {
     if (isPaused) return;
     
-    // 3 minutes per month at normal speed (180000ms), adjusted by gameSpeed
+    // 10 seconds per month at normal speed (10000ms), adjusted by gameSpeed
     const tickInterval = setInterval(() => {
       tick();
-    }, 180000 / gameSpeed); 
+    }, 10000 / gameSpeed); 
     
     return () => clearInterval(tickInterval);
   }, [tick, gameSpeed, isPaused]);
