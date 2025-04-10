@@ -5,6 +5,9 @@ import { getProductRequirements } from '../utils/productRequirements';
 // Maximum global population
 const MAX_GLOBAL_POPULATION = 8000000000; // 8 billion people
 
+// Tax rate
+const CORPORATE_TAX_RATE = 0.23; // 23% corporate tax
+
 export const useGameStore = create((set, get) => ({
   // Game state
   gameStarted: false,
@@ -26,6 +29,7 @@ export const useGameStore = create((set, get) => ({
     monthlyIncome: 0,
     monthlyExpenses: 0,
     marketingBudget: 0,
+    acquiredCompanies: [], // List of acquired companies
   },
   
   // Market data
@@ -106,6 +110,61 @@ export const useGameStore = create((set, get) => ({
         marketingBudget: budget
       }
     }));
+  },
+  
+  // Acquire a competitor company
+  acquireCompany: (competitorId) => {
+    set(state => {
+      // Find the competitor to acquire
+      const competitorIndex = state.competitors.findIndex(c => c.id === competitorId);
+      if (competitorIndex === -1) return state; // Competitor not found
+      
+      const competitor = state.competitors[competitorIndex];
+      
+      // Calculate acquisition cost (2x valuation)
+      const acquisitionCost = competitor.valuation * 2;
+      
+      // Check if company has enough cash
+      if (state.company.cash < acquisitionCost) {
+        // Not enough cash to acquire
+        return state;
+      }
+      
+      // Create a copy of competitors without the acquired one
+      const updatedCompetitors = [
+        ...state.competitors.slice(0, competitorIndex),
+        ...state.competitors.slice(competitorIndex + 1)
+      ];
+      
+      // Add the competitor's products to the player's company
+      const updatedProducts = [
+        ...state.company.products,
+        ...competitor.products.map(product => ({
+          ...product,
+          name: `${product.name} (Acquired)` // Mark as acquired
+        }))
+      ];
+      
+      // Record the acquisition
+      const acquiredCompany = {
+        id: competitor.id,
+        name: competitor.name,
+        acquisitionDate: new Date(state.currentDate),
+        acquisitionPrice: acquisitionCost,
+        valuation: competitor.valuation,
+        productCount: competitor.products.length
+      };
+      
+      return {
+        competitors: updatedCompetitors,
+        company: {
+          ...state.company,
+          cash: state.company.cash - acquisitionCost,
+          products: updatedProducts,
+          acquiredCompanies: [...state.company.acquiredCompanies, acquiredCompany]
+        }
+      };
+    });
   },
   
   // Product development
@@ -302,20 +361,35 @@ export const useGameStore = create((set, get) => ({
             updatedQuality = Math.max(1, product.quality - 2 * fullYearsPassed); // Degrade by 2 points per year
           }
           
-          // Calculate user growth based on quality
+          // Calculate user growth based on quality and current user base
           let monthlyGrowthRate = 0;
-          switch (updatedQuality) {
-            case 10: monthlyGrowthRate = 0.1; break;  // Reduced from 0.3
-            case 9: monthlyGrowthRate = 0.08; break;  // Reduced from 0.28
-            case 8: monthlyGrowthRate = 0.06; break;  // Reduced from 0.22
-            case 7: monthlyGrowthRate = 0.04; break;  // Reduced from 0.18
-            case 6: monthlyGrowthRate = 0.01; break;  // Reduced from 0.02
-            case 5: monthlyGrowthRate = -0.01; break; // Reduced from -0.02
-            case 4: monthlyGrowthRate = -0.05; break; // Reduced from -0.2
-            case 3: monthlyGrowthRate = -0.1; break;  // Reduced from -0.35
-            case 2: monthlyGrowthRate = -0.15; break; // Reduced from -0.55
-            case 1: monthlyGrowthRate = -0.2; break;  // Reduced from -0.65
-            default: monthlyGrowthRate = 0;
+          
+          // Special growth rules for products with 1 billion+ users
+          if (product.users >= 1000000000) {
+            // Monthly growth rates equivalent to the specified yearly rates
+            switch (updatedQuality) {
+              case 10: monthlyGrowthRate = 0.00083; break; // ~1% per year
+              case 9: monthlyGrowthRate = 0; break;        // Stays the same
+              case 8: monthlyGrowthRate = -0.00583; break; // ~-7% per year
+              case 7: monthlyGrowthRate = -0.01; break;    // Faster decline
+              case 6: monthlyGrowthRate = -0.015; break;   // Faster decline
+              default: monthlyGrowthRate = -0.02; break;   // Faster decline for < 6 quality
+            }
+          } else {
+            // Standard growth rates for products under 1 billion users
+            switch (updatedQuality) {
+              case 10: monthlyGrowthRate = 0.1; break;
+              case 9: monthlyGrowthRate = 0.08; break;
+              case 8: monthlyGrowthRate = 0.06; break;
+              case 7: monthlyGrowthRate = 0.04; break;
+              case 6: monthlyGrowthRate = 0.01; break;
+              case 5: monthlyGrowthRate = -0.01; break;
+              case 4: monthlyGrowthRate = -0.05; break;
+              case 3: monthlyGrowthRate = -0.1; break;
+              case 2: monthlyGrowthRate = -0.15; break;
+              case 1: monthlyGrowthRate = -0.2; break;
+              default: monthlyGrowthRate = 0;
+            }
           }
           
           // Apply growth rate
@@ -335,7 +409,9 @@ export const useGameStore = create((set, get) => ({
           
           // Calculate needed resources
           const productEmployees = Math.ceil(newUsers / 2000) + product.employees; // Support + development
-          const productServers = Math.ceil(newUsers / 100);
+          
+          // Automatic server allocation - 10$ for every 300 users (instead of manual allocation)
+          const productServers = Math.ceil(newUsers / 300);
           
           requiredEmployees += productEmployees;
           requiredServers += productServers;
@@ -359,10 +435,20 @@ export const useGameStore = create((set, get) => ({
       
       // Fixed expenses
       const employeeCost = state.company.employees * 10000;
-      const serverCost = state.company.servers * 10;
+      const serverCost = requiredServers * 10; // Server cost now based on required servers
       const marketingCost = state.company.marketingBudget;
       
-      monthlyExpenses = employeeCost + serverCost + marketingCost;
+      // Pre-tax expenses
+      const preTaxExpenses = employeeCost + serverCost + marketingCost;
+      
+      // Calculate profit before tax
+      const profitBeforeTax = monthlyIncome - preTaxExpenses;
+      
+      // Calculate tax (only on profits, no tax if loss)
+      const taxAmount = profitBeforeTax > 0 ? profitBeforeTax * CORPORATE_TAX_RATE : 0;
+      
+      // Total expenses including tax
+      monthlyExpenses = preTaxExpenses + taxAmount;
       
       // Update cash
       const newCash = state.company.cash + monthlyIncome - monthlyExpenses;
@@ -381,20 +467,96 @@ export const useGameStore = create((set, get) => ({
         avgQuality * 10000000 // $10M per average quality point
       );
       
-      // Auto-adjust employees and servers if cash allows (simplified)
+      // Auto-adjust employees if cash allows
       let newEmployees = state.company.employees;
-      let newServers = state.company.servers;
       
       if (requiredEmployees > newEmployees && newCash > (requiredEmployees - newEmployees) * 10000) {
         newEmployees = requiredEmployees;
       }
       
-      if (requiredServers > newServers && newCash > (requiredServers - newServers) * 10) {
-        newServers = requiredServers;
-      }
+      // Handle AI acquisitions
+      let updatedCompetitors = [...state.competitors];
       
-      // Process AI competitors (simplified)
-      const updatedCompetitors = state.competitors.map(competitor => {
+      // AI companies can attempt to acquire other AI companies
+      const aiAcquisitionAttempts = () => {
+        // Sort competitors by valuation (richest first)
+        const sortedCompetitors = [...updatedCompetitors].sort((a, b) => b.valuation - a.valuation);
+        
+        // Only top 10% companies can acquire others
+        const acquirerCount = Math.max(1, Math.floor(sortedCompetitors.length * 0.1));
+        const potentialAcquirers = sortedCompetitors.slice(0, acquirerCount);
+        
+        for (const acquirer of potentialAcquirers) {
+          // 5% chance to attempt acquisition
+          if (Math.random() > 0.05) continue;
+          
+          // Find a smaller company to acquire (bottom 50%)
+          const targetIndex = Math.floor(Math.random() * Math.floor(sortedCompetitors.length * 0.5)) + Math.floor(sortedCompetitors.length * 0.5);
+          
+          if (targetIndex >= sortedCompetitors.length) continue;
+          
+          const target = sortedCompetitors[targetIndex];
+          
+          // Skip if trying to acquire itself
+          if (acquirer.id === target.id) continue;
+          
+          // Calculate acquisition price (2x valuation)
+          const acquisitionPrice = target.valuation * 2;
+          
+          // Check if acquirer can afford it (needs at least 3x valuation in cash)
+          if (acquirer.valuation < acquisitionPrice * 3) continue;
+          
+          // Perform acquisition
+          const targetCompetitorIndex = updatedCompetitors.findIndex(c => c.id === target.id);
+          
+          if (targetCompetitorIndex !== -1) {
+            // Remove target from competitors list
+            const targetCompetitor = updatedCompetitors[targetCompetitorIndex];
+            updatedCompetitors.splice(targetCompetitorIndex, 1);
+            
+            // Find acquirer in the updated list
+            const acquirerIndex = updatedCompetitors.findIndex(c => c.id === acquirer.id);
+            
+            if (acquirerIndex !== -1) {
+              // Add target's products to acquirer
+              const acquirerCompetitor = updatedCompetitors[acquirerIndex];
+              
+              // Record acquisition in acquirer's history
+              const acquiredCompany = {
+                id: targetCompetitor.id,
+                name: targetCompetitor.name,
+                acquisitionDate: new Date(newDate),
+                acquisitionPrice: acquisitionPrice,
+                productCount: targetCompetitor.products.length
+              };
+              
+              // Update the acquirer
+              updatedCompetitors[acquirerIndex] = {
+                ...acquirerCompetitor,
+                products: [
+                  ...acquirerCompetitor.products,
+                  ...targetCompetitor.products.map(product => ({
+                    ...product,
+                    name: `${product.name} (Acquired by ${acquirerCompetitor.name})`
+                  }))
+                ],
+                acquiredCompanies: [
+                  ...(acquirerCompetitor.acquiredCompanies || []),
+                  acquiredCompany
+                ]
+              };
+            }
+          }
+        }
+        
+        return updatedCompetitors;
+      };
+      
+      // Process AI competitors with acquisition logic
+      updatedCompetitors = aiAcquisitionAttempts();
+      
+      // Process regular AI competitor behavior
+      updatedCompetitors = updatedCompetitors.map(competitor => {
         // Simple AI behavior:
         // 1. Randomly improve products
         // 2. Random chance to add a new product
@@ -412,20 +574,34 @@ export const useGameStore = create((set, get) => ({
             quality = Math.max(1, quality - 1);
           }
           
-          // Update users based on quality - using the same reduced growth rates as player
+          // Update users based on quality and current user base
           let growthRate = 0;
-          switch (quality) {
-            case 10: growthRate = 0.1; break;
-            case 9: growthRate = 0.08; break;
-            case 8: growthRate = 0.06; break;
-            case 7: growthRate = 0.04; break;
-            case 6: growthRate = 0.01; break;
-            case 5: growthRate = -0.01; break;
-            case 4: growthRate = -0.05; break;
-            case 3: growthRate = -0.1; break;
-            case 2: growthRate = -0.15; break;
-            case 1: growthRate = -0.2; break;
-            default: growthRate = 0;
+          
+          // Apply special growth rules for products with 1 billion+ users
+          if (product.users >= 1000000000) {
+            switch (quality) {
+              case 10: growthRate = 0.00083; break; // ~1% per year
+              case 9: growthRate = 0; break;        // Stays the same
+              case 8: growthRate = -0.00583; break; // ~-7% per year
+              case 7: growthRate = -0.01; break;    // Faster decline
+              case 6: growthRate = -0.015; break;   // Faster decline
+              default: growthRate = -0.02; break;   // Faster decline for < 6 quality
+            }
+          } else {
+            // Standard growth rates for products under 1 billion users
+            switch (quality) {
+              case 10: growthRate = 0.1; break;
+              case 9: growthRate = 0.08; break;
+              case 8: growthRate = 0.06; break;
+              case 7: growthRate = 0.04; break;
+              case 6: growthRate = 0.01; break;
+              case 5: growthRate = -0.01; break;
+              case 4: growthRate = -0.05; break;
+              case 3: growthRate = -0.1; break;
+              case 2: growthRate = -0.15; break;
+              case 1: growthRate = -0.2; break;
+              default: growthRate = 0;
+            }
           }
           
           // Calculate new users with growth rate
@@ -474,7 +650,8 @@ export const useGameStore = create((set, get) => ({
         return {
           ...competitor,
           products: finalProducts,
-          valuation: newValuation
+          valuation: newValuation,
+          acquiredCompanies: competitor.acquiredCompanies || [] // Ensure this exists
         };
       });
       
@@ -487,7 +664,7 @@ export const useGameStore = create((set, get) => ({
           valuation: newValuation,
           products: updatedProducts,
           employees: newEmployees,
-          servers: newServers,
+          servers: requiredServers, // Automatically adjusted servers
           monthlyIncome,
           monthlyExpenses
         },
