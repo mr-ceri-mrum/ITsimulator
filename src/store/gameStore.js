@@ -35,7 +35,7 @@ export const useGameStore = create((set, get) => ({
   
   // Initialize the game
   startGame: (companyName) => {
-    const competitors = generateRandomCompanies(15); // Generate 15 AI competitors
+    const competitors = generateRandomCompanies(150); // Generate 150 AI competitors
     
     set({
       gameStarted: true,
@@ -267,9 +267,14 @@ export const useGameStore = create((set, get) => ({
           
           // Check if we need to degrade quality due to age (every year)
           let updatedQuality = product.quality;
-          if (Math.floor(yearsSinceLaunch) > (product.lastUpdated ? 
-              Math.floor((newDate - new Date(product.lastUpdated)) / (1000 * 60 * 60 * 24 * 365)) : 0)) {
-            updatedQuality = Math.max(1, product.quality - 2); // Degrade by 2 points per year
+          
+          // Check if a full year has passed since product launch or last update
+          const lastUpdatedDate = product.lastUpdated ? new Date(product.lastUpdated) : new Date(product.launchDate);
+          const fullYearsPassed = Math.floor((newDate - lastUpdatedDate) / (1000 * 60 * 60 * 24 * 365));
+          
+          // Only degrade if a full year has passed
+          if (fullYearsPassed > 0) {
+            updatedQuality = Math.max(1, product.quality - 2 * fullYearsPassed); // Degrade by 2 points per year
           }
           
           // Calculate user growth based on quality
