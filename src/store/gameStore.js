@@ -39,6 +39,7 @@ export const useGameStore = create((set, get) => ({
     
     set({
       gameStarted: true,
+      isPaused: false, // Start game running automatically
       company: {
         ...get().company,
         name: companyName,
