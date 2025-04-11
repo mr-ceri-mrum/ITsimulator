@@ -1,7 +1,15 @@
 import React, { useState } from 'react';
 import { useGameStore } from '../store/gameStore';
-import { formatCurrency, formatNumber, getQualityClass, getQualityLabel } from '../utils/formatters';
+import { 
+  formatCurrency, 
+  formatNumber, 
+  getQualityClass, 
+  getQualityLabel,
+  formatShortCurrency,
+  formatShortNumber
+} from '../utils/formatters';
 import { getProductNames } from '../utils/productRequirements';
+import { MAX_GLOBAL_POPULATION } from '../constants/gameConfig';
 
 const Market = () => {
   const { competitors, company, potentialUsers, acquireCompany } = useGameStore(state => ({
@@ -16,13 +24,13 @@ const Market = () => {
   const productNames = getProductNames();
   
   // Sort competitors by valuation (descending)
-  const sortedCompetitors = [...competitors].sort((a, b) => b.valuation - a.valuation);
+  const sortedCompetitors = [...(competitors || [])].sort((a, b) => (b.valuation || 0) - (a.valuation || 0));
   
   // Calculate market position
   const allCompanies = [
     ...sortedCompetitors,
     { id: 'player', name: company.name, valuation: company.valuation }
-  ].sort((a, b) => b.valuation - a.valuation);
+  ].sort((a, b) => (b.valuation || 0) - (a.valuation || 0));
   
   const playerRank = allCompanies.findIndex(c => c.id === 'player') + 1;
   
@@ -31,7 +39,7 @@ const Market = () => {
     const categories = {};
     
     // Initialize categories with player's products
-    company.products.forEach(product => {
+    (company.products || []).forEach(product => {
       if (!product.isInDevelopment) {
         if (!categories[product.type]) {
           categories[product.type] = {
@@ -40,20 +48,20 @@ const Market = () => {
           };
         }
         
-        categories[product.type].totalUsers += product.users;
+        categories[product.type].totalUsers += product.users || 0;
         categories[product.type].companies.push({
           name: company.name,
           productName: product.name,
-          users: product.users,
-          quality: product.quality,
+          users: product.users || 0,
+          quality: product.quality || 0,
           isPlayer: true
         });
       }
     });
     
     // Add competitor products
-    competitors.forEach(competitor => {
-      competitor.products.forEach(product => {
+    (competitors || []).forEach(competitor => {
+      (competitor.products || []).forEach(product => {
         if (!categories[product.type]) {
           categories[product.type] = {
             totalUsers: 0,
@@ -61,12 +69,12 @@ const Market = () => {
           };
         }
         
-        categories[product.type].totalUsers += product.users;
+        categories[product.type].totalUsers += product.users || 0;
         categories[product.type].companies.push({
           name: competitor.name,
           productName: product.name,
-          users: product.users,
-          quality: product.quality,
+          users: product.users || 0,
+          quality: product.quality || 0,
           isPlayer: false
         });
       });
@@ -75,10 +83,10 @@ const Market = () => {
     // Calculate market share percentages and sort companies by users
     Object.keys(categories).forEach(category => {
       categories[category].companies.forEach(company => {
-        company.marketShare = (company.users / categories[category].totalUsers) * 100;
+        company.marketShare = (company.users / Math.max(1, categories[category].totalUsers)) * 100;
       });
       
-      categories[category].companies.sort((a, b) => b.users - a.users);
+      categories[category].companies.sort((a, b) => (b.users || 0) - (a.users || 0));
     });
     
     return categories;
@@ -91,33 +99,35 @@ const Market = () => {
     let total = 0;
     
     // Player's products
-    company.products.forEach(product => {
+    (company.products || []).forEach(product => {
       if (!product.isInDevelopment) {
-        total += product.users;
+        total += product.users || 0;
       }
     });
     
     // Competitor products
-    competitors.forEach(competitor => {
-      competitor.products.forEach(product => {
-        total += product.users;
+    (competitors || []).forEach(competitor => {
+      (competitor.products || []).forEach(product => {
+        total += product.users || 0;
       });
     });
     
-    return total;
+    // Ensure total users doesn't exceed the maximum global population
+    return Math.min(total, MAX_GLOBAL_POPULATION);
   };
   
   const totalMarketUsers = calculateTotalMarketUsers();
-  const marketPenetration = (totalMarketUsers / potentialUsers) * 100;
+  const maxPotentialUsers = Math.min(potentialUsers || 8000000000, MAX_GLOBAL_POPULATION);
+  const marketPenetration = (totalMarketUsers / Math.max(1, maxPotentialUsers)) * 100;
   
   // Generate market overview data
   const generateMarketOverview = () => {
     const data = [];
     
     // Add player company
-    const playerTotalUsers = company.products.reduce((sum, product) => {
+    const playerTotalUsers = (company.products || []).reduce((sum, product) => {
       if (!product.isInDevelopment) {
-        return sum + product.users;
+        return sum + (product.users || 0);
       }
       return sum;
     }, 0);
@@ -125,41 +135,41 @@ const Market = () => {
     data.push({
       id: 'player',
       name: company.name,
-      valuation: company.valuation,
+      valuation: company.valuation || 0,
       totalUsers: playerTotalUsers,
-      products: company.products.filter(p => !p.isInDevelopment).length,
-      marketShare: (playerTotalUsers / totalMarketUsers) * 100,
+      products: (company.products || []).filter(p => !p.isInDevelopment).length,
+      marketShare: totalMarketUsers > 0 ? (playerTotalUsers / totalMarketUsers) * 100 : 0,
       isPlayer: true,
       acquiredCompanies: company.acquiredCompanies || []
     });
     
     // Add competitors
-    competitors.forEach(competitor => {
-      const competitorTotalUsers = competitor.products.reduce((sum, product) => sum + product.users, 0);
+    (competitors || []).forEach(competitor => {
+      const competitorTotalUsers = (competitor.products || []).reduce((sum, product) => sum + (product.users || 0), 0);
       
       data.push({
         id: competitor.id,
         name: competitor.name,
-        valuation: competitor.valuation,
+        valuation: competitor.valuation || 0,
         totalUsers: competitorTotalUsers,
-        products: competitor.products.length,
-        marketShare: (competitorTotalUsers / totalMarketUsers) * 100,
+        products: (competitor.products || []).length,
+        marketShare: totalMarketUsers > 0 ? (competitorTotalUsers / totalMarketUsers) * 100 : 0,
         isPlayer: false,
         acquiredCompanies: competitor.acquiredCompanies || []
       });
     });
     
     // Sort by valuation
-    return data.sort((a, b) => b.valuation - a.valuation);
+    return data.sort((a, b) => (b.valuation || 0) - (a.valuation || 0));
   };
   
   const marketOverview = generateMarketOverview();
   
   // Handle acquisition attempt
   const handleAcquireCompany = (competitor) => {
-    const acquisitionCost = competitor.valuation * 2;
+    const acquisitionCost = (competitor.valuation || 0) * 2;
     
-    if (company.cash < acquisitionCost) {
+    if ((company.cash || 0) < acquisitionCost) {
       setConfirmAcquisition({
         ...competitor,
         canAfford: false,
@@ -228,15 +238,15 @@ const Market = () => {
                 <div className="market-stats">
                   <div className="market-stat">
                     <div className="stat-label">Potential Users</div>
-                    <div className="stat-value">{formatNumber(potentialUsers)}</div>
+                    <div className="stat-value">{formatShortNumber(maxPotentialUsers)}</div>
                   </div>
                   <div className="market-stat">
                     <div className="stat-label">Total Active Users</div>
-                    <div className="stat-value">{formatNumber(totalMarketUsers)}</div>
+                    <div className="stat-value">{formatShortNumber(totalMarketUsers)}</div>
                   </div>
                   <div className="market-stat">
                     <div className="stat-label">Market Penetration</div>
-                    <div className="stat-value">{marketPenetration.toFixed(1)}%</div>
+                    <div className="stat-value">{Math.min(100, marketPenetration).toFixed(1)}%</div>
                   </div>
                   <div className="market-stat">
                     <div className="stat-label">Your Rank</div>
@@ -256,7 +266,7 @@ const Market = () => {
                       <h4 className="company-name">
                         {index + 1}. {company.name} {company.isPlayer && '(You)'}
                       </h4>
-                      <div className="company-value">{formatCurrency(company.valuation)}</div>
+                      <div className="company-value">{formatShortCurrency(company.valuation)}</div>
                     </div>
                     <div className="company-stats">
                       <div className="company-stat">
@@ -265,7 +275,7 @@ const Market = () => {
                       </div>
                       <div className="company-stat">
                         <span className="stat-label">Users:</span>
-                        <span className="stat-value">{formatNumber(company.totalUsers)}</span>
+                        <span className="stat-value">{formatShortNumber(company.totalUsers)}</span>
                       </div>
                       <div className="company-stat">
                         <span className="stat-label">Market Share:</span>
@@ -280,7 +290,7 @@ const Market = () => {
                     <div className="market-share-bar-container">
                       <div 
                         className={`market-share-bar ${company.isPlayer ? 'player-bar' : ''}`}
-                        style={{ width: `${company.marketShare}%` }}
+                        style={{ width: `${Math.min(100, company.marketShare)}%` }}
                       ></div>
                     </div>
                     
@@ -293,7 +303,7 @@ const Market = () => {
                             padding: '8px 16px'
                           }}
                         >
-                          Acquire Company ({formatCurrency(company.valuation * 2)})
+                          Acquire Company ({formatShortCurrency(company.valuation * 2)})
                         </button>
                       </div>
                     )}
@@ -316,7 +326,7 @@ const Market = () => {
                         <div className="category-stat">
                           <div className="stat-label">Total Users</div>
                           <div className="stat-value">
-                            {formatNumber(marketShareByCategory[category].totalUsers)}
+                            {formatShortNumber(marketShareByCategory[category].totalUsers)}
                           </div>
                         </div>
                         <div className="category-stat">
@@ -347,7 +357,7 @@ const Market = () => {
                             <div className="company-stats">
                               <div className="company-stat">
                                 <span className="stat-label">Users:</span>
-                                <span className="stat-value">{formatNumber(company.users)}</span>
+                                <span className="stat-value">{formatShortNumber(company.users)}</span>
                               </div>
                               <div className="company-stat">
                                 <span className="stat-label">Market Share:</span>
@@ -358,7 +368,7 @@ const Market = () => {
                             <div className="market-share-bar-container">
                               <div 
                                 className={`market-share-bar ${company.isPlayer ? 'player-bar' : ''}`}
-                                style={{ width: `${company.marketShare}%` }}
+                                style={{ width: `${Math.min(100, company.marketShare)}%` }}
                               ></div>
                             </div>
                           </div>
@@ -390,14 +400,14 @@ const Market = () => {
                           fontSize: '0.9em'
                         }}
                       >
-                        Acquire for {formatCurrency(competitor.valuation * 2)}
+                        Acquire for {formatShortCurrency(competitor.valuation * 2)}
                       </button>
                     </div>
                     
                     <div className="competitor-stats">
                       <div className="competitor-stat">
                         <div className="stat-label">Valuation</div>
-                        <div className="stat-value">{formatCurrency(competitor.valuation)}</div>
+                        <div className="stat-value">{formatShortCurrency(competitor.valuation)}</div>
                       </div>
                       <div className="competitor-stat">
                         <div className="stat-label">Products</div>
@@ -426,7 +436,7 @@ const Market = () => {
                           
                           <div className="product-info">
                             <span className="product-type">{productNames[product.type]}</span>
-                            <span className="product-users">{formatNumber(product.users)} users</span>
+                            <span className="product-users">{formatShortNumber(product.users)} users</span>
                           </div>
                         </div>
                       ))}
@@ -438,7 +448,7 @@ const Market = () => {
                         <ul className="acquired-companies-list">
                           {competitor.acquiredCompanies.map((acquired, acqIndex) => (
                             <li key={acqIndex}>
-                              {acquired.name} - {formatCurrency(acquired.acquisitionPrice)} 
+                              {acquired.name} - {formatShortCurrency(acquired.acquisitionPrice)} 
                               ({new Date(acquired.acquisitionDate).getFullYear()})
                             </li>
                           ))}
@@ -473,7 +483,7 @@ const Market = () => {
                           <tr key={index}>
                             <td style={{ padding: '8px', borderBottom: '1px solid #eee' }}>{acquisition.name}</td>
                             <td style={{ textAlign: 'right', padding: '8px', borderBottom: '1px solid #eee' }}>
-                              {formatCurrency(acquisition.acquisitionPrice)}
+                              {formatShortCurrency(acquisition.acquisitionPrice)}
                             </td>
                             <td style={{ textAlign: 'right', padding: '8px', borderBottom: '1px solid #eee' }}>
                               {acquisition.productCount}
@@ -489,7 +499,7 @@ const Market = () => {
                     <div style={{ marginTop: '20px' }}>
                       <h4>Total Acquisition Spending</h4>
                       <p style={{ fontSize: '1.2em', fontWeight: 'bold' }}>
-                        {formatCurrency(company.acquiredCompanies.reduce((sum, acq) => sum + acq.acquisitionPrice, 0))}
+                        {formatShortCurrency(company.acquiredCompanies.reduce((sum, acq) => sum + acq.acquisitionPrice, 0))}
                       </p>
                     </div>
                   </div>
@@ -510,7 +520,7 @@ const Market = () => {
                           <ul>
                             {company.acquiredCompanies.map((acq, acqIndex) => (
                               <li key={acqIndex}>
-                                Acquired {acq.name} for {formatCurrency(acq.acquisitionPrice)} in {new Date(acq.acquisitionDate).getFullYear()}
+                                Acquired {acq.name} for {formatShortCurrency(acq.acquisitionPrice)} in {new Date(acq.acquisitionDate).getFullYear()}
                               </li>
                             ))}
                           </ul>
@@ -537,7 +547,7 @@ const Market = () => {
               {confirmAcquisition.canAfford ? (
                 <div>
                   <p>Are you sure you want to acquire <strong>{confirmAcquisition.name}</strong>?</p>
-                  <p>This acquisition will cost <strong>{formatCurrency(confirmAcquisition.acquisitionCost)}</strong>.</p>
+                  <p>This acquisition will cost <strong>{formatShortCurrency(confirmAcquisition.acquisitionCost)}</strong>.</p>
                   <p>You will gain all of their products and market share.</p>
                   
                   <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'space-between' }}>
@@ -558,7 +568,7 @@ const Market = () => {
               ) : (
                 <div>
                   <p>You cannot afford to acquire <strong>{confirmAcquisition.name}</strong>.</p>
-                  <p>This acquisition would cost <strong>{formatCurrency(confirmAcquisition.acquisitionCost)}</strong>, but you only have <strong>{formatCurrency(company.cash)}</strong> available.</p>
+                  <p>This acquisition would cost <strong>{formatShortCurrency(confirmAcquisition.acquisitionCost)}</strong>, but you only have <strong>{formatShortCurrency(company.cash)}</strong> available.</p>
                   
                   <div style={{ marginTop: '20px', textAlign: 'center' }}>
                     <button onClick={cancelAcquireCompany}>OK</button>
