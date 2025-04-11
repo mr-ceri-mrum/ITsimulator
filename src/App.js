@@ -3,7 +3,7 @@
  */
 import React, { useEffect } from 'react';
 import { useGameStore } from './store';
-import StartGame from './components/game/StartGame';
+import StartGame from './components/StartGame';
 import GameInterface from './components/game/GameInterface';
 
 /**
@@ -19,9 +19,12 @@ const App = () => {
   // При монтировании компонента показываем приветственное сообщение
   useEffect(() => {
     if (!gameStarted) {
-      showSuccessNotification('Добро пожаловать в IT Simulator!', 5000);
+      // Функция может быть недоступна до полной реализации всех срезов хранилища
+      if (showSuccessNotification) {
+        showSuccessNotification('Добро пожаловать в IT Simulator!', 5000);
+      }
     }
-  }, []);
+  }, [gameStarted, showSuccessNotification]);
   
   return (
     <div className="app-container">
