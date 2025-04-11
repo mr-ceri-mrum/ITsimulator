@@ -312,6 +312,44 @@ const createCompanySlice = (set, get) => ({
   },
   
   /**
+   * Удаляет продукт из списка продуктов компании
+   * @param {string} productId - ID продукта для удаления
+   * @returns {boolean} - Успешно ли выполнена операция
+   */
+  deleteProduct: (productId) => {
+    console.log('Удаление продукта:', productId);
+    
+    set(state => {
+      // Находим продукт для удаления
+      const productIndex = state.company.products.findIndex(p => p.id === productId);
+      
+      // Если продукт не найден, возвращаем текущее состояние
+      if (productIndex === -1) return state;
+      
+      // Создаем копию массива продуктов без удаляемого продукта
+      const updatedProducts = [
+        ...state.company.products.slice(0, productIndex),
+        ...state.company.products.slice(productIndex + 1)
+      ];
+      
+      // Показываем уведомление об успешном удалении, если функция доступна
+      if (typeof get().showSuccessNotification === 'function') {
+        get().showSuccessNotification('Продукт успешно удален', 3000);
+      }
+      
+      // Возвращаем обновленное состояние
+      return {
+        company: {
+          ...state.company,
+          products: updatedProducts
+        }
+      };
+    });
+    
+    return true;
+  },
+  
+  /**
    * Обновляет информацию о компании
    * @param {Object} updates - Объект с обновляемыми полями
    */
