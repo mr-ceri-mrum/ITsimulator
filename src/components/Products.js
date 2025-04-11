@@ -1,14 +1,19 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useGameStore } from '../store/gameStore';
 import { formatNumber, formatDate, getQualityClass, getQualityLabel } from '../utils/formatters';
 import { getProductNames } from '../utils/productRequirements';
 
 const Products = () => {
-  const { company, openModal, updateProduct } = useGameStore(state => ({
+  const { company, openModal, updateProduct, deleteProduct, showSuccessNotification } = useGameStore(state => ({
     company: state.company,
     openModal: state.openModal,
-    updateProduct: state.updateProduct
+    updateProduct: state.updateProduct,
+    deleteProduct: state.deleteProduct,
+    showSuccessNotification: state.showSuccessNotification
   }));
+  
+  // State for delete confirmation
+  const [confirmDelete, setConfirmDelete] = useState(null);
   
   const productNames = getProductNames();
   
@@ -19,6 +24,30 @@ const Products = () => {
   // Handle product update
   const handleUpdateProduct = (productId, updateType) => {
     updateProduct(productId, updateType);
+  };
+  
+  // Handle delete product click
+  const handleDeleteClick = (product) => {
+    setConfirmDelete(product);
+  };
+  
+  // Confirm product deletion
+  const confirmProductDelete = () => {
+    if (confirmDelete) {
+      deleteProduct(confirmDelete.id);
+      
+      // If showSuccessNotification doesn't exist in the store, we'll handle it here
+      if (!showSuccessNotification) {
+        console.log('Продукт успешно удален:', confirmDelete.name);
+      }
+      
+      setConfirmDelete(null);
+    }
+  };
+  
+  // Cancel product deletion
+  const cancelProductDelete = () => {
+    setConfirmDelete(null);
   };
   
   return (
@@ -66,6 +95,13 @@ const Products = () => {
                 </button>
                 <button onClick={() => handleUpdateProduct(product.id, 'major')}>
                   Major Update (+2)
+                </button>
+                <button 
+                  onClick={() => handleDeleteClick(product)}
+                  className="delete-button"
+                  style={{ backgroundColor: '#e74c3c', marginLeft: '10px' }}
+                >
+                  Delete Product
                 </button>
               </div>
             </div>
@@ -115,11 +151,63 @@ const Products = () => {
                   ))}
                 </div>
               </div>
+              
+              <div className="product-actions" style={{ marginTop: '15px' }}>
+                <button 
+                  onClick={() => handleDeleteClick(product)}
+                  className="delete-button"
+                  style={{ backgroundColor: '#e74c3c' }}
+                >
+                  Cancel Development
+                </button>
+              </div>
             </div>
           ))}
         </div>
       ) : (
         <p>You don't have any products in development.</p>
+      )}
+      
+      {/* Delete Confirmation Modal */}
+      {confirmDelete && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '400px' }}>
+            <div className="modal-header">
+              <h3>Confirm Deletion</h3>
+              <button className="modal-close" onClick={cancelProductDelete}>×</button>
+            </div>
+            
+            <div className="modal-body">
+              <p>Are you sure you want to delete <strong>{confirmDelete.name}</strong>?</p>
+              
+              {!confirmDelete.isInDevelopment && (
+                <div>
+                  <p><strong>Warning:</strong> This will result in:</p>
+                  <ul>
+                    <li>Loss of {formatNumber(confirmDelete.users)} users</li>
+                    <li>Reduction in monthly revenue of ${formatNumber(confirmDelete.users * 15)}</li>
+                    <li>Reassignment of {confirmDelete.employees || 0} team members</li>
+                  </ul>
+                </div>
+              )}
+              
+              <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'space-between' }}>
+                <button 
+                  onClick={cancelProductDelete}
+                  style={{ backgroundColor: '#95a5a6' }}
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={confirmProductDelete}
+                  style={{ backgroundColor: '#e74c3c' }}
+                >
+                  Confirm Deletion
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
