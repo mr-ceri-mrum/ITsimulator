@@ -3,25 +3,36 @@
  */
 
 /**
+ * Проверяет, является ли значение действительным числом
+ * @param {any} value - Проверяемое значение
+ * @returns {number} - 0, если значение не является числом, иначе само значение
+ */
+const ensureNumeric = (value) => {
+  if (value === undefined || value === null || isNaN(value)) {
+    return 0;
+  }
+  return Number(value);
+};
+
+/**
  * Форматирует число как валюту (доллары)
  * @param {number} amount - Сумма для форматирования
  * @param {boolean} short - Использовать сокращенный формат (K, M, B, T)
  * @returns {string} - Отформатированная строка
  */
 export const formatCurrency = (amount, short = false) => {
-  if (amount === undefined || amount === null) {
-    return '$0';
-  }
+  // Обеспечиваем, что amount - действительное число
+  const safeAmount = ensureNumeric(amount);
   
-  if (short && Math.abs(amount) >= 1000) {
-    if (Math.abs(amount) >= 1000000000000) { // Trillion
-      return `$${(amount / 1000000000000).toFixed(1)}T`;
-    } else if (Math.abs(amount) >= 1000000000) { // Billion
-      return `$${(amount / 1000000000).toFixed(1)}B`;
-    } else if (Math.abs(amount) >= 1000000) { // Million
-      return `$${(amount / 1000000).toFixed(1)}M`;
-    } else if (Math.abs(amount) >= 1000) { // Thousand
-      return `$${(amount / 1000).toFixed(1)}K`;
+  if (short || Math.abs(safeAmount) >= 1000) {
+    if (Math.abs(safeAmount) >= 1000000000000) { // Trillion
+      return `$${(safeAmount / 1000000000000).toFixed(1)}T`;
+    } else if (Math.abs(safeAmount) >= 1000000000) { // Billion
+      return `$${(safeAmount / 1000000000).toFixed(1)}B`;
+    } else if (Math.abs(safeAmount) >= 1000000) { // Million
+      return `$${(safeAmount / 1000000).toFixed(1)}M`;
+    } else if (Math.abs(safeAmount) >= 1000) { // Thousand
+      return `$${(safeAmount / 1000).toFixed(1)}K`;
     }
   }
   
@@ -30,7 +41,7 @@ export const formatCurrency = (amount, short = false) => {
     style: 'currency', 
     currency: 'USD',
     maximumFractionDigits: 0 
-  }).format(amount);
+  }).format(safeAmount);
 };
 
 /**
@@ -40,24 +51,41 @@ export const formatCurrency = (amount, short = false) => {
  * @returns {string} - Отформатированная строка
  */
 export const formatNumber = (number, short = false) => {
-  if (number === undefined || number === null) {
-    return '0';
-  }
+  // Обеспечиваем, что number - действительное число
+  const safeNumber = ensureNumeric(number);
   
-  if (short && Math.abs(number) >= 1000) {
-    if (Math.abs(number) >= 1000000000000) { // Trillion
-      return `${(number / 1000000000000).toFixed(1)}T`;
-    } else if (Math.abs(number) >= 1000000000) { // Billion
-      return `${(number / 1000000000).toFixed(1)}B`;
-    } else if (Math.abs(number) >= 1000000) { // Million
-      return `${(number / 1000000).toFixed(1)}M`;
-    } else if (Math.abs(number) >= 1000) { // Thousand
-      return `${(number / 1000).toFixed(1)}K`;
+  if (short || Math.abs(safeNumber) >= 1000) {
+    if (Math.abs(safeNumber) >= 1000000000000) { // Trillion
+      return `${(safeNumber / 1000000000000).toFixed(1)}T`;
+    } else if (Math.abs(safeNumber) >= 1000000000) { // Billion
+      return `${(safeNumber / 1000000000).toFixed(1)}B`;
+    } else if (Math.abs(safeNumber) >= 1000000) { // Million
+      return `${(safeNumber / 1000000).toFixed(1)}M`;
+    } else if (Math.abs(safeNumber) >= 1000) { // Thousand
+      return `${(safeNumber / 1000).toFixed(1)}K`;
     }
   }
   
   // Стандартный формат с разделителями
-  return new Intl.NumberFormat('en-US').format(number);
+  return new Intl.NumberFormat('en-US').format(safeNumber);
+};
+
+/**
+ * Всегда форматирует число в короткой форме (k, M, B)
+ * @param {number} number - Число для форматирования
+ * @returns {string} - Отформатированная строка
+ */
+export const formatShortNumber = (number) => {
+  return formatNumber(number, true);
+};
+
+/**
+ * Всегда форматирует валюту в короткой форме ($k, $M, $B)
+ * @param {number} amount - Сумма для форматирования
+ * @returns {string} - Отформатированная строка
+ */
+export const formatShortCurrency = (amount) => {
+  return formatCurrency(amount, true);
 };
 
 /**
@@ -112,32 +140,38 @@ export const formatDate = (date, style = 'medium') => {
  * @returns {string} - Отформатированная строка
  */
 export const formatPercent = (value, decimals = 1) => {
-  if (value === undefined || value === null) {
-    return '0%';
-  }
+  // Обеспечиваем, что value - действительное число
+  const safeValue = ensureNumeric(value);
   
-  return `${(value * 100).toFixed(decimals)}%`;
+  return `${(safeValue * 100).toFixed(decimals)}%`;
 };
 
 /**
  * Рассчитывает общие расходы 
  * @param {Object} company - Объект компании
- * @returns {number} - Сумма расходов
+ * @returns {Object} - Объект с разбивкой расходов
  */
 export const calculateExpenses = (company) => {
-  if (!company) return 0;
+  if (!company) return { employees: 0, servers: 0, marketing: 0, total: 0 };
   
   // Базовые расходы на сотрудников
-  const employeeCost = (company.employees || 0) * 10000;
+  const employeeCost = ensureNumeric(company.employees) * 10000;
   
   // Расходы на сервера
-  const serverCost = (company.servers || 0) * 10;
+  const serverCost = ensureNumeric(company.servers) * 10;
   
   // Маркетинговый бюджет
-  const marketingCost = company.marketingBudget || 0;
+  const marketingCost = ensureNumeric(company.marketingBudget);
   
   // Общие расходы без учета налогов
-  return employeeCost + serverCost + marketingCost;
+  const total = employeeCost + serverCost + marketingCost;
+  
+  return {
+    employees: employeeCost,
+    servers: serverCost,
+    marketing: marketingCost,
+    total: total
+  };
 };
 
 /**
@@ -146,7 +180,7 @@ export const calculateExpenses = (company) => {
  * @returns {string} - CSS-класс
  */
 export const getQualityClass = (quality) => {
-  if (quality === undefined || quality === null) {
+  if (quality === undefined || quality === null || isNaN(quality)) {
     return 'quality-unknown';
   }
   
@@ -163,7 +197,7 @@ export const getQualityClass = (quality) => {
  * @returns {string} - Текстовая метка
  */
 export const getQualityLabel = (quality) => {
-  if (quality === undefined || quality === null) {
+  if (quality === undefined || quality === null || isNaN(quality)) {
     return 'Unknown';
   }
   
