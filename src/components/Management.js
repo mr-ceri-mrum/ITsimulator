@@ -9,11 +9,20 @@ import {
 } from '../utils/formatters';
 
 const Management = () => {
-  const { company, hireEmployees, addServers, setMarketingBudget } = useGameStore(state => ({
+  const { 
+    company, 
+    hireEmployees, 
+    addServers, 
+    setMarketingBudget, 
+    calculatedRequiredEmployees, 
+    requiresEmployeeUpdate 
+  } = useGameStore(state => ({
     company: state.company,
     hireEmployees: state.hireEmployees,
     addServers: state.addServers,
-    setMarketingBudget: state.setMarketingBudget
+    setMarketingBudget: state.setMarketingBudget,
+    calculatedRequiredEmployees: state.calculatedRequiredEmployees || 0,
+    requiresEmployeeUpdate: state.requiresEmployeeUpdate || false
   }));
   
   // Local state for form inputs
@@ -39,9 +48,11 @@ const Management = () => {
     return sum;
   }, 0);
   
-  // Calculate required resources
-  const requiredEmployeesForSupport = Math.ceil(totalUsers / 2000);
-  const requiredServers = Math.ceil(totalUsers / 300); // Now 1 server per 300 users
+  // Calculate required resources based on the 5 employees per 10,000 users rule
+  const requiredEmployeesForUsers = Math.ceil(totalUsers / 10000 * 5);
+  
+  // Calculate required servers (1 per 300 users)
+  const requiredServers = Math.ceil(totalUsers / 300);
   
   // Additional employees for product development/updates
   const additionalEmployees = company.products.reduce((sum, product) => {
@@ -51,7 +62,18 @@ const Management = () => {
     return sum;
   }, 0);
   
-  const totalRequiredEmployees = requiredEmployeesForSupport + additionalEmployees;
+  // Use the calculated required employees from the game state or compute it if not available
+  const totalRequiredEmployees = calculatedRequiredEmployees || (requiredEmployeesForUsers + additionalEmployees);
+  
+  // Calculate the employee shortfall
+  const employeeShortfall = Math.max(0, totalRequiredEmployees - (company.employees || 0));
+  
+  // Automatically suggest the shortfall for hire count
+  useEffect(() => {
+    if (requiresEmployeeUpdate && employeeShortfall > 0 && employeeCount === 0) {
+      setEmployeeCount(employeeShortfall);
+    }
+  }, [requiresEmployeeUpdate, employeeShortfall, employeeCount]);
   
   // Calculate expected costs
   const calculateCosts = () => {
@@ -139,17 +161,30 @@ const Management = () => {
           
           <div className="resource-info">
             <p><strong>Current Employees:</strong> {formatNumber(company.employees)}</p>
-            <p><strong>Required for Support:</strong> {formatNumber(requiredEmployeesForSupport)}</p>
+            <p><strong>Required for Users:</strong> {formatNumber(requiredEmployeesForUsers)} (5 per 10k users)</p>
             <p><strong>Required for Development:</strong> {formatNumber(additionalEmployees)}</p>
             <p><strong>Total Required:</strong> {formatNumber(totalRequiredEmployees)}</p>
             <p className={totalRequiredEmployees > (company.employees || 0) ? 'resource-deficit' : 'resource-surplus'}>
               <strong>Status:</strong> {
                 totalRequiredEmployees > (company.employees || 0) ? 
-                `Understaffed (${formatNumber(totalRequiredEmployees - (company.employees || 0))} needed)` : 
+                `Understaffed (${formatNumber(employeeShortfall)} needed)` : 
                 `Well staffed (${formatNumber((company.employees || 0) - totalRequiredEmployees)} extra)`
               }
             </p>
             <p><strong>Monthly Cost:</strong> {formatShortCurrency(expenses.employees)}</p>
+            
+            {requiresEmployeeUpdate && employeeShortfall > 0 && (
+              <div className="employee-warning" style={{ 
+                backgroundColor: '#ffebee', 
+                color: '#c62828', 
+                padding: '10px', 
+                borderRadius: '4px',
+                marginTop: '10px'
+              }}>
+                <p><strong>Warning:</strong> You need to hire {employeeShortfall} more employees to support your products!</p>
+                <p>Products with insufficient staff may lose users faster and generate less revenue.</p>
+              </div>
+            )}
           </div>
           
           <div className="resource-action">
@@ -169,7 +204,10 @@ const Management = () => {
               Cost: {formatShortCurrency(costs.employees)}
             </div>
             
-            <button onClick={handleHireEmployees}>Hire Employees</button>
+            <button onClick={handleHireEmployees} 
+                    style={requiresEmployeeUpdate ? {backgroundColor: '#e74c3c'} : {}}>
+              Hire Employees
+            </button>
           </div>
         </div>
         
