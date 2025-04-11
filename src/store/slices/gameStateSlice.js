@@ -32,9 +32,13 @@ const createGameStateSlice = (set, get) => ({
   startGame: (companyName) => {
     console.log('Запуск игры с компанией:', companyName);
     
-    // Пытаемся вызвать generateCompetitors, если функция доступна
+    // Генерируем конкурентов при запуске
+    // Сначала проверим наличие функции и вызовем её
     if (typeof get().generateCompetitors === 'function') {
+      console.log('Генерация конкурентов через функцию generateCompetitors');
       get().generateCompetitors();
+    } else {
+      console.warn('Функция generateCompetitors не найдена!');
     }
     
     set({
