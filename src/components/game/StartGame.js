@@ -13,9 +13,8 @@ const StartGame = () => {
   const [companyName, setCompanyName] = useState('');
   
   // Получаем функцию для начала игры из хранилища
-  const { startGame, showErrorNotification } = useGameStore((state) => ({
+  const { startGame } = useGameStore((state) => ({
     startGame: state.startGame,
-    showErrorNotification: state.showErrorNotification
   }));
   
   /**
@@ -27,7 +26,7 @@ const StartGame = () => {
     
     // Проверяем, что имя компании не пустое
     if (!companyName.trim()) {
-      showErrorNotification('Пожалуйста, введите название вашей компании', 3000);
+      alert('Пожалуйста, введите название вашей компании');
       return;
     }
     
