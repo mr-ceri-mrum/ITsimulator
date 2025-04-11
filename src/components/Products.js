@@ -4,16 +4,19 @@ import { formatNumber, formatDate, getQualityClass, getQualityLabel } from '../u
 import { getProductNames } from '../utils/productRequirements';
 
 const Products = () => {
-  const { company, openModal, updateProduct, deleteProduct, showSuccessNotification } = useGameStore(state => ({
+  const { company, openModal, updateProduct, deleteProduct, reduceProductStaff, showSuccessNotification } = useGameStore(state => ({
     company: state.company,
     openModal: state.openModal,
     updateProduct: state.updateProduct,
     deleteProduct: state.deleteProduct,
+    reduceProductStaff: state.reduceProductStaff,
     showSuccessNotification: state.showSuccessNotification
   }));
   
   // State for delete confirmation
   const [confirmDelete, setConfirmDelete] = useState(null);
+  // State for staff reduction confirmation
+  const [confirmReduceStaff, setConfirmReduceStaff] = useState(null);
   
   const productNames = getProductNames();
   
@@ -29,6 +32,11 @@ const Products = () => {
   // Handle delete product click
   const handleDeleteClick = (product) => {
     setConfirmDelete(product);
+  };
+  
+  // Handle reduce staff click
+  const handleReduceStaffClick = (product) => {
+    setConfirmReduceStaff(product);
   };
   
   // Confirm product deletion
@@ -48,6 +56,19 @@ const Products = () => {
   // Cancel product deletion
   const cancelProductDelete = () => {
     setConfirmDelete(null);
+  };
+  
+  // Confirm staff reduction
+  const confirmReduceStaff = () => {
+    if (confirmReduceStaff) {
+      reduceProductStaff(confirmReduceStaff.id);
+      setConfirmReduceStaff(null);
+    }
+  };
+  
+  // Cancel staff reduction
+  const cancelReduceStaff = () => {
+    setConfirmReduceStaff(null);
   };
   
   return (
@@ -95,6 +116,14 @@ const Products = () => {
                 </button>
                 <button onClick={() => handleUpdateProduct(product.id, 'major')}>
                   Major Update (+2)
+                </button>
+                <button 
+                  onClick={() => handleReduceStaffClick(product)}
+                  className="reduce-staff-button"
+                  style={{ backgroundColor: '#f39c12', marginLeft: '10px' }}
+                  disabled={product.employees <= 1}
+                >
+                  Reduce Staff
                 </button>
                 <button 
                   onClick={() => handleDeleteClick(product)}
@@ -203,6 +232,46 @@ const Products = () => {
                   style={{ backgroundColor: '#e74c3c' }}
                 >
                   Confirm Deletion
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Reduce Staff Confirmation Modal */}
+      {confirmReduceStaff && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '400px' }}>
+            <div className="modal-header">
+              <h3>Confirm Staff Reduction</h3>
+              <button className="modal-close" onClick={cancelReduceStaff}>×</button>
+            </div>
+            
+            <div className="modal-body">
+              <p>Are you sure you want to reduce the team size for <strong>{confirmReduceStaff.name}</strong>?</p>
+              
+              <div>
+                <p><strong>Warning:</strong> This will result in:</p>
+                <ul>
+                  <li>50% reduction in team size (from {confirmReduceStaff.employees} to {Math.max(1, Math.floor(confirmReduceStaff.employees * 0.5))} employees)</li>
+                  <li>Potentially negative impact on user growth and revenue if staff level is too low</li>
+                  <li>Reduced ability to maintain product quality</li>
+                </ul>
+              </div>
+              
+              <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'space-between' }}>
+                <button 
+                  onClick={cancelReduceStaff}
+                  style={{ backgroundColor: '#95a5a6' }}
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={confirmReduceStaff}
+                  style={{ backgroundColor: '#f39c12' }}
+                >
+                  Confirm Reduction
                 </button>
               </div>
             </div>
