@@ -1,7 +1,8 @@
 /**
- * Срез хранилища для управления рынком и конкурентами (минимальная версия)
+ * Срез хранилища для управления рынком и конкурентами
  */
-import { INITIAL_POTENTIAL_USERS } from '../../constants/gameConfig';
+import { INITIAL_POTENTIAL_USERS, AI_COMPANY_CONFIG } from '../../constants/gameConfig';
+import { generateRandomCompanies } from '../../utils/aiCompanies';
 
 /**
  * Создает срез для управления рынком и конкурентами
@@ -12,11 +13,12 @@ const createMarketSlice = (set, get) => ({
   competitors: [],
   
   /**
-   * Генерирует конкурентов при запуске игры (заглушка)
+   * Генерирует конкурентов при запуске игры
    */
   generateCompetitors: () => {
-    console.log('Генерация конкурентов');
-    set({ competitors: [] });
+    console.log('Генерация конкурентов (200 компаний)');
+    const competitors = generateRandomCompanies(200); // Генерируем 200 компаний
+    set({ competitors });
   },
   
   /**
@@ -38,7 +40,7 @@ const createMarketSlice = (set, get) => ({
   },
   
   /**
-   * Обрабатывает стратегию ИИ-компаний (заглушка)
+   * Обрабатывает стратегию ИИ-компаний
    */
   processAIBehavior: () => {
     console.log('Обработка поведения ИИ-конкурентов');
