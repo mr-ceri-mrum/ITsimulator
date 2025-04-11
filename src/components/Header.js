@@ -38,7 +38,7 @@ const Header = () => {
   };
   
   return (
-    <div className="header">
+    <div className="game-header">
       <div className="company-info">
         <h1>{companyName}</h1>
         <div className="game-date">{formatDate(currentDate, 'long')}</div>
