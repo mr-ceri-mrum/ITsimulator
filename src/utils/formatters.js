@@ -99,11 +99,13 @@ export const calculateExpenses = (company) => {
   const employeeExpenses = company.employees * 10000;
   const serverExpenses = company.servers * 10;
   const marketingExpenses = company.marketingBudget || 0;
+  const taxExpenses = company.monthlyTaxes || 0;
   
   return {
     employees: employeeExpenses,
     servers: serverExpenses,
     marketing: marketingExpenses,
-    total: employeeExpenses + serverExpenses + marketingExpenses
+    taxes: taxExpenses,
+    total: employeeExpenses + serverExpenses + marketingExpenses + taxExpenses
   };
 };
