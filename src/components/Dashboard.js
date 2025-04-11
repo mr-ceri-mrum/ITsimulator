@@ -1,6 +1,13 @@
 import React from 'react';
 import { useGameStore } from '../store/gameStore';
-import { formatCurrency, formatNumber, calculateExpenses } from '../utils/formatters';
+import { 
+  formatCurrency, 
+  formatNumber, 
+  calculateExpenses, 
+  formatShortCurrency, 
+  formatShortNumber,
+  ensureNumeric 
+} from '../utils/formatters';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 const Dashboard = () => {
@@ -13,7 +20,7 @@ const Dashboard = () => {
   // Calculate total users across all products
   const totalUsers = company.products.reduce((total, product) => {
     if (!product.isInDevelopment) {
-      return total + product.users;
+      return total + (product.users || 0);
     }
     return total;
   }, 0);
@@ -21,12 +28,12 @@ const Dashboard = () => {
   // Get top 3 products by user count
   const topProducts = [...company.products]
     .filter(product => !product.isInDevelopment)
-    .sort((a, b) => b.users - a.users)
+    .sort((a, b) => (b.users || 0) - (a.users || 0))
     .slice(0, 3);
   
   // Get top 5 competitors by valuation
-  const topCompetitors = [...competitors]
-    .sort((a, b) => b.valuation - a.valuation)
+  const topCompetitors = [...(competitors || [])]
+    .sort((a, b) => (b.valuation || 0) - (a.valuation || 0))
     .slice(0, 5);
   
   // Calculate expenses breakdown
@@ -34,21 +41,24 @@ const Dashboard = () => {
   
   // Financial data (income/expenses)
   const financeData = [
-    { name: 'Income', value: company.monthlyIncome },
-    { name: 'Expenses', value: company.monthlyExpenses }
+    { name: 'Income', value: company.monthlyIncome || 0 },
+    { name: 'Expenses', value: company.monthlyExpenses || 0 }
   ];
   
   // Expense breakdown data for chart
   const expenseData = [
-    { name: 'Employees', value: expenses.employees },
-    { name: 'Servers', value: expenses.servers },
-    { name: 'Marketing', value: expenses.marketing },
+    { name: 'Employees', value: expenses.employees || 0 },
+    { name: 'Servers', value: expenses.servers || 0 },
+    { name: 'Marketing', value: expenses.marketing || 0 },
     { name: 'Taxes', value: company.monthlyTaxes || 0 }
   ];
   
   // Tax information
-  const profitBeforeTax = company.monthlyIncome - (expenses.employees + expenses.servers + expenses.marketing);
+  const profitBeforeTax = (company.monthlyIncome || 0) - expenses.total;
   const taxRate = 23; // 23%
+  const effectiveTaxRate = profitBeforeTax > 0 
+    ? ((company.monthlyTaxes || 0) / profitBeforeTax * 100).toFixed(1) 
+    : 0;
   
   return (
     <div>
@@ -60,14 +70,14 @@ const Dashboard = () => {
           <div className="card-header">Company Overview</div>
           <div>
             <p><strong>Name:</strong> {company.name}</p>
-            <p><strong>Founded:</strong> {currentDate.getFullYear()}</p>
-            <p><strong>Valuation:</strong> {formatCurrency(company.valuation)}</p>
-            <p><strong>Cash:</strong> {formatCurrency(company.cash)}</p>
-            <p><strong>Employees:</strong> {company.employees}</p>
-            <p><strong>Monthly Income:</strong> {formatCurrency(company.monthlyIncome)}</p>
-            <p><strong>Monthly Expenses:</strong> {formatCurrency(company.monthlyExpenses)}</p>
-            <p><strong>Products:</strong> {company.products.filter(p => !p.isInDevelopment).length}</p>
-            <p><strong>Total Users:</strong> {formatNumber(totalUsers)}</p>
+            <p><strong>Founded:</strong> {currentDate ? currentDate.getFullYear() : 'N/A'}</p>
+            <p><strong>Valuation:</strong> {formatShortCurrency(company.valuation)}</p>
+            <p><strong>Cash:</strong> {formatShortCurrency(company.cash)}</p>
+            <p><strong>Employees:</strong> {formatNumber(company.employees)}</p>
+            <p><strong>Monthly Income:</strong> {formatShortCurrency(company.monthlyIncome)}</p>
+            <p><strong>Monthly Expenses:</strong> {formatShortCurrency(company.monthlyExpenses)}</p>
+            <p><strong>Products:</strong> {(company.products || []).filter(p => !p.isInDevelopment).length}</p>
+            <p><strong>Total Users:</strong> {formatShortNumber(totalUsers)}</p>
           </div>
         </div>
         
@@ -76,14 +86,14 @@ const Dashboard = () => {
           <div className="card-header">Tax Information</div>
           <div>
             <p><strong>Current Tax Rate:</strong> {taxRate}%</p>
-            <p><strong>Monthly Profit Before Tax:</strong> {formatCurrency(profitBeforeTax)}</p>
-            <p><strong>Monthly Tax:</strong> {formatCurrency(company.monthlyTaxes || 0)}</p>
+            <p><strong>Monthly Profit Before Tax:</strong> {formatShortCurrency(profitBeforeTax)}</p>
+            <p><strong>Monthly Tax:</strong> {formatShortCurrency(company.monthlyTaxes)}</p>
             <p><strong>Effective Tax Rate:</strong> {
               profitBeforeTax > 0 
-                ? ((company.monthlyTaxes || 0) / profitBeforeTax * 100).toFixed(1) + '%' 
+                ? `${effectiveTaxRate}%` 
                 : 'N/A (No Profit)'
             }</p>
-            <p><strong>Total Taxes Paid:</strong> {formatCurrency(company.taxesPaid || 0)}</p>
+            <p><strong>Total Taxes Paid:</strong> {formatShortCurrency(company.taxesPaid)}</p>
             
             <div style={{ borderTop: '1px solid #eee', marginTop: '10px', paddingTop: '10px' }}>
               <p><strong>Marketing Cost per User:</strong> {
@@ -91,7 +101,7 @@ const Dashboard = () => {
                   ? '$20.00 (High Market Saturation)' 
                   : '$5.00 (Normal)'
               }</p>
-              <p><strong>Acquisitions:</strong> {company.acquiredCompanies ? company.acquiredCompanies.length : 0}</p>
+              <p><strong>Acquisitions:</strong> {(company.acquiredCompanies || []).length}</p>
             </div>
           </div>
         </div>
@@ -105,7 +115,7 @@ const Dashboard = () => {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="name" />
                 <YAxis />
-                <Tooltip formatter={(value) => formatCurrency(value)} />
+                <Tooltip formatter={(value) => formatShortCurrency(value)} />
                 <Line type="monotone" dataKey="value" stroke="#3498db" />
               </LineChart>
             </ResponsiveContainer>
@@ -119,7 +129,7 @@ const Dashboard = () => {
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="name" />
                   <YAxis />
-                  <Tooltip formatter={(value) => formatCurrency(value)} />
+                  <Tooltip formatter={(value) => formatShortCurrency(value)} />
                   <Line type="monotone" dataKey="value" stroke="#e74c3c" />
                 </LineChart>
               </ResponsiveContainer>
@@ -135,9 +145,11 @@ const Dashboard = () => {
               {topProducts.map(product => (
                 <div key={product.id} className="top-product-item">
                   <h4>{product.name}</h4>
-                  <p>Users: {formatNumber(product.users)}</p>
+                  <p>Users: {formatShortNumber(product.users)}</p>
                   <p>Quality: {product.quality}/10</p>
-                  <div className="product-bar" style={{ width: `${product.users / (topProducts[0].users || 1) * 100}%` }}></div>
+                  <div className="product-bar" style={{ 
+                    width: `${(product.users || 0) / ((topProducts[0].users || 1) * 100)}%` 
+                  }}></div>
                 </div>
               ))}
             </div>
@@ -153,10 +165,10 @@ const Dashboard = () => {
             <h4>Top Companies by Valuation</h4>
             <ol className="top-companies-list">
               {[...topCompetitors, { name: company.name, valuation: company.valuation }]
-                .sort((a, b) => b.valuation - a.valuation)
+                .sort((a, b) => (b.valuation || 0) - (a.valuation || 0))
                 .map((comp, index) => (
                   <li key={index} className={comp.name === company.name ? 'your-company' : ''}>
-                    {comp.name} - {formatCurrency(comp.valuation)}
+                    {comp.name} - {formatShortCurrency(comp.valuation)}
                     {comp.name === company.name && ' (You)'}
                   </li>
                 ))}
