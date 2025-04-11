@@ -2,7 +2,6 @@
  * Хук для управления игровым циклом и интервалами
  */
 import { useEffect, useCallback } from 'react';
-import { GAME_TICK_INTERVAL } from '../constants/gameConfig';
 
 /**
  * Хук для управления интервалом обновления игры
@@ -12,33 +11,33 @@ import { GAME_TICK_INTERVAL } from '../constants/gameConfig';
  * @param {boolean} isPaused - Приостановлена ли игра
  * @returns {Object} - Объект с функциями управления
  */
-export const useGameTick = (tickFunction, gameSpeed = 1, isPaused = false) => {
+const useGameTick = (tickFunction, gameSpeed = 1, isPaused = false) => {
   // Создаем стабильную ссылку на функцию
   const tick = useCallback(() => {
-    if (!isPaused) {
+    if (!isPaused && typeof tickFunction === 'function') {
       tickFunction();
     }
   }, [tickFunction, isPaused]);
 
   // Настраиваем интервал для выполнения тика
   useEffect(() => {
-    if (isPaused) return;
+    if (isPaused || typeof tickFunction !== 'function') return;
     
     // Рассчитываем интервал с учетом скорости
-    const intervalTime = GAME_TICK_INTERVAL / gameSpeed;
+    const intervalTime = 10000 / gameSpeed; // 10 секунд по умолчанию
     
     const tickInterval = setInterval(() => {
       tick();
     }, intervalTime);
     
     return () => clearInterval(tickInterval);
-  }, [tick, gameSpeed, isPaused]);
+  }, [tick, gameSpeed, isPaused, tickFunction]);
 
   /**
    * Выполняет один тик игры (полезно для ручного обновления)
    */
   const executeTick = useCallback(() => {
-    if (!isPaused) {
+    if (!isPaused && typeof tickFunction === 'function') {
       tickFunction();
     }
   }, [tickFunction, isPaused]);
