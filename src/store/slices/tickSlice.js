@@ -43,7 +43,7 @@ const createTickSlice = (set, get) => ({
       
       // 2. Увеличиваем потенциальную пользовательскую базу
       const newPotentialUsers = Math.min(
-        MAX_GLOBAL_POPULATION || 8000000000, 
+        MAX_GLOBAL_POPULATION, 
         (state.potentialUsers || 5000000000) + (MARKET_PARAMS?.MONTHLY_USER_GROWTH || 20800000)
       );
 
@@ -53,6 +53,37 @@ const createTickSlice = (set, get) => ({
       // Рассчитаем общее необходимое количество сотрудников для всех продуктов
       let totalCalculatedRequired = 0;
       
+      // Проверим общее количество пользователей в мире
+      const calculateTotalWorldUsers = () => {
+        let totalWorldUsers = 0;
+        
+        // Пользователи в продуктах игрока
+        (company.products || []).forEach(product => {
+          if (!product.isInDevelopment) {
+            totalWorldUsers += (product.users || 0);
+          }
+        });
+        
+        // Пользователи в продуктах конкурентов
+        (state.competitors || []).forEach(competitor => {
+          (competitor.products || []).forEach(product => {
+            totalWorldUsers += (product.users || 0);
+          });
+        });
+        
+        return totalWorldUsers;
+      };
+      
+      // Общее количество пользователей в мире
+      const totalWorldUsers = calculateTotalWorldUsers();
+      
+      // Рассчитаем масштабный коэффициент для ограничения роста, если мир перенаселен
+      // Если общее количество пользователей превышает потенциальных пользователей,
+      // все приросты должны быть пропорционально уменьшены
+      const worldUserScaleFactor = totalWorldUsers > newPotentialUsers 
+        ? Math.max(0.5, newPotentialUsers / Math.max(1, totalWorldUsers)) 
+        : 1;
+      
       // 3. Обработка разработки продуктов
       const updatedProducts = (company.products || []).map(product => {
         if (product.isInDevelopment) {
@@ -60,7 +91,7 @@ const createTickSlice = (set, get) => ({
           const progress = 5 + Math.random() * 10;
           return {
             ...product,
-            developmentProgress: Math.min(100, product.developmentProgress + progress)
+            developmentProgress: Math.min(100, (product.developmentProgress || 0) + progress)
           };
         } else {
           // Для выпущенных продуктов обновляем пользователей
@@ -114,7 +145,14 @@ const createTickSlice = (set, get) => ({
             }
           }
           
-          // Применяем коэффициент роста
+          // ВАЖНО: Применяем коэффициент масштабирования мира, если общее количество 
+          // пользователей превышает потенциальное население
+          if (worldUserScaleFactor < 1 && growthRate > 0) {
+            // Уменьшаем положительный рост
+            growthRate *= worldUserScaleFactor;
+          }
+          
+          // Применяем коэффициент роста с учетом всех корректировок
           newUsers = Math.floor(newUsers * (1 + growthRate));
           
           // Добавляем пользователей от маркетинга, если есть бюджет
@@ -125,13 +163,18 @@ const createTickSlice = (set, get) => ({
             // Новые пользователи от маркетинга
             // Если не хватает сотрудников, эффективность маркетинга также снижается
             const marketingEfficiency = Math.min(1, employeeShortageRatio * 0.8 + 0.2); // Минимум 20% эффективности
-            const marketingUsers = Math.floor(company.marketingBudget / acquisitionCost * marketingEfficiency);
+            
+            // Также применяем мировой масштабный коэффициент к маркетинговым приобретениям
+            const worldAdjustedEfficiency = marketingEfficiency * (growthRate > 0 ? worldUserScaleFactor : 1);
+            
+            const marketingUsers = Math.floor(company.marketingBudget / acquisitionCost * worldAdjustedEfficiency);
             newUsers += marketingUsers;
           }
           
-          // Ограничиваем максимальное количество пользователей
-          const maxUsers = newPotentialUsers * 0.4; // 40% максимум от всех потенциальных
-          newUsers = Math.min(newUsers, maxUsers);
+          // Ограничиваем максимальное количество пользователей для продукта
+          // Ни один продукт не может иметь более 40% от потенциальных пользователей
+          const maxUsersForProduct = newPotentialUsers * 0.4; 
+          newUsers = Math.min(newUsers, maxUsersForProduct);
           
           // Предотвращаем отрицательное число пользователей
           newUsers = Math.max(0, newUsers);
@@ -226,6 +269,49 @@ const createTickSlice = (set, get) => ({
       if (typeof get().processAIBehavior === 'function') {
         try {
           updatedCompetitors = get().processAIBehavior();
+          
+          // После обновления конкурентов, проверяем, не превышает ли общее количество
+          // пользователей в мире допустимый предел
+          const checkTotalUsers = () => {
+            let total = 0;
+            
+            // Учитываем пользователей игрока
+            updatedProducts.forEach(product => {
+              if (!product.isInDevelopment) {
+                total += product.users || 0;
+              }
+            });
+            
+            // Учитываем пользователей конкурентов
+            updatedCompetitors.forEach(competitor => {
+              (competitor.products || []).forEach(product => {
+                total += product.users || 0;
+              });
+            });
+            
+            return total;
+          };
+          
+          const updatedTotalUsers = checkTotalUsers();
+          
+          // Если после обновления конкурентов превышен лимит пользователей
+          if (updatedTotalUsers > MAX_GLOBAL_POPULATION) {
+            // Применяем корректировку ко всем конкурентам, пропорционально уменьшая
+            // количество пользователей для всех продуктов
+            const correctionFactor = MAX_GLOBAL_POPULATION / updatedTotalUsers;
+            
+            updatedCompetitors = updatedCompetitors.map(competitor => {
+              const correctedProducts = (competitor.products || []).map(product => ({
+                ...product,
+                users: Math.floor((product.users || 0) * correctionFactor)
+              }));
+              
+              return {
+                ...competitor,
+                products: correctedProducts
+              };
+            });
+          }
         } catch (err) {
           console.error('Ошибка при обработке поведения ИИ:', err);
         }
