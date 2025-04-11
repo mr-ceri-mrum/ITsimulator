@@ -50,6 +50,9 @@ const createTickSlice = (set, get) => ({
       // Получим текущую компанию и ее продукты
       const company = state.company || { products: [] };
       
+      // Рассчитаем общее необходимое количество сотрудников для всех продуктов
+      let totalCalculatedRequired = 0;
+      
       // 3. Обработка разработки продуктов
       const updatedProducts = (company.products || []).map(product => {
         if (product.isInDevelopment) {
@@ -66,13 +69,50 @@ const createTickSlice = (set, get) => ({
           // Проверяем деградацию качества со временем
           const currentQuality = calculateQualityDegradation(product, newDate);
           
+          // Рассчитываем необходимое количество сотрудников для этого продукта
+          const requiredEmployeesForProduct = calculateMinEmployeesForUsers(newUsers);
+          totalCalculatedRequired += requiredEmployeesForProduct + (product.employees || 0);
+          
           // Базовый рост пользователей в зависимости от качества
           // В зависимости от количества пользователей используем разную логику роста
           const isBillionUsers = newUsers >= BILLION_USERS_THRESHOLD;
-          const growthRate = calculateUserGrowthRate(
+          let growthRate = calculateUserGrowthRate(
             { ...product, quality: currentQuality }, 
             isBillionUsers
           );
+          
+          // ШТРАФ ЗА НЕДОСТАТОК СОТРУДНИКОВ
+          // Если у нас недостаточно сотрудников, применяем штраф к росту пользователей
+          const currentEmployees = company.employees || 0;
+          const employeeShortageRatio = Math.min(1, currentEmployees / Math.max(1, totalCalculatedRequired));
+          
+          // Если есть нехватка сотрудников, рост пользователей снижается или отток усиливается
+          // Чем больше нехватка, тем больше штраф
+          if (employeeShortageRatio < 1) {
+            // Например, если у нас только 50% от необходимых сотрудников:
+            // 1. Если рост положительный, он уменьшается на до 70%
+            // 2. Если рост отрицательный, отток усиливается до 30%
+            if (growthRate > 0) {
+              // Снижение положительного роста
+              growthRate *= employeeShortageRatio * 0.7 + 0.3; // Минимум 30% от исходного роста
+            } else {
+              // Усиление оттока (умножаем отрицательное значение на коэффициент > 1)
+              growthRate *= 1 + (1 - employeeShortageRatio) * 0.3; // Усиление оттока до 30%
+            }
+            
+            // Если сотрудников критически мало (менее 50%), добавляем дополнительный штраф к качеству
+            if (employeeShortageRatio < 0.5 && currentQuality > 1) {
+              // Симулируем временное ухудшение качества из-за недостатка сотрудников
+              const qualityPenalty = Math.ceil((1 - employeeShortageRatio) * 2);
+              const effectiveQuality = Math.max(1, currentQuality - qualityPenalty);
+              
+              // Пересчитываем рост с учетом штрафа к качеству
+              growthRate = calculateUserGrowthRate(
+                { ...product, quality: effectiveQuality }, 
+                isBillionUsers
+              );
+            }
+          }
           
           // Применяем коэффициент роста
           newUsers = Math.floor(newUsers * (1 + growthRate));
@@ -83,7 +123,9 @@ const createTickSlice = (set, get) => ({
             const acquisitionCost = newUsers > 100000000 ? 20 : 5;
             
             // Новые пользователи от маркетинга
-            const marketingUsers = Math.floor(company.marketingBudget / acquisitionCost);
+            // Если не хватает сотрудников, эффективность маркетинга также снижается
+            const marketingEfficiency = Math.min(1, employeeShortageRatio * 0.8 + 0.2); // Минимум 20% эффективности
+            const marketingUsers = Math.floor(company.marketingBudget / acquisitionCost * marketingEfficiency);
             newUsers += marketingUsers;
           }
           
@@ -106,20 +148,25 @@ const createTickSlice = (set, get) => ({
       let monthlyIncome = 0;
       let requiredServers = 0;
       
-      // Вычисляем НЕОБХОДИМОЕ количество сотрудников (но НЕ изменяем автоматически)
-      let calculatedRequiredEmployees = 0;
-      
       // Считаем доходы и ресурсы для каждого продукта
       updatedProducts.forEach(product => {
         if (!product.isInDevelopment) {
-          // Доход: $15 за пользователя
-          const productRevenue = (product.users || 0) * (BUSINESS_METRICS?.REVENUE_PER_USER || 15);
-          monthlyIncome += productRevenue;
+          // Базовый доход на пользователя
+          let revenuePerUser = BUSINESS_METRICS?.REVENUE_PER_USER || 15;
           
-          // Расчет необходимого количества сотрудников (но не автоматическое обновление)
-          const baseProductEmployees = calculateMinEmployeesForUsers(product.users || 0);
-          const idealProductEmployees = baseProductEmployees + (product.employees || 0);
-          calculatedRequiredEmployees += idealProductEmployees;
+          // Уменьшаем доход, если не хватает сотрудников (аналогично влиянию на рост)
+          const currentEmployees = company.employees || 0;
+          const employeeShortageRatio = Math.min(1, currentEmployees / Math.max(1, totalCalculatedRequired));
+          
+          if (employeeShortageRatio < 1) {
+            // При нехватке сотрудников, доход на пользователя снижается
+            // Например, если у нас 70% от нужных сотрудников, доход будет 85% от нормального
+            revenuePerUser *= employeeShortageRatio * 0.5 + 0.5; // Минимум 50% от базового дохода
+          }
+          
+          // Рассчитываем доход для продукта
+          const productRevenue = (product.users || 0) * revenuePerUser;
+          monthlyIncome += productRevenue;
           
           // Требуемые серверы: 1 на каждые 300 пользователей (серверы автоматически обновляются)
           const productServers = Math.ceil((product.users || 0) / (BUSINESS_METRICS?.USERS_PER_SERVER || 300));
@@ -128,7 +175,7 @@ const createTickSlice = (set, get) => ({
       });
       
       // Проверка, есть ли необходимость в обновлении количества сотрудников
-      const needsMoreEmployees = calculatedRequiredEmployees > (company.employees || 0);
+      const needsMoreEmployees = totalCalculatedRequired > (company.employees || 0);
       
       // Используем фактическое количество сотрудников, а не требуемое (не автоматическое увеличение)
       const currentEmployees = company.employees || 0;
@@ -186,7 +233,7 @@ const createTickSlice = (set, get) => ({
       
       // Показ уведомления о необходимости нанять больше сотрудников
       if (needsMoreEmployees && typeof get().showWarningNotification === 'function') {
-        const additionalEmployeesNeeded = calculatedRequiredEmployees - currentEmployees;
+        const additionalEmployeesNeeded = totalCalculatedRequired - currentEmployees;
         if (additionalEmployeesNeeded > 5) { // Показываем только если нужно больше 5 новых сотрудников
           get().showWarningNotification(
             `Требуется нанять еще ${additionalEmployeesNeeded} сотрудников для поддержки продуктов!`,
@@ -214,7 +261,7 @@ const createTickSlice = (set, get) => ({
         },
         competitors: updatedCompetitors,
         requiresEmployeeUpdate: needsMoreEmployees,
-        calculatedRequiredEmployees: calculatedRequiredEmployees
+        calculatedRequiredEmployees: totalCalculatedRequired
       };
     });
   }
