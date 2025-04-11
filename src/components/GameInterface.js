@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { useGameStore } from '../store/gameStore';
+import { useGameStore } from '../store';
 import Header from './Header';
 import Sidebar from './Sidebar';
 import Dashboard from './Dashboard';
@@ -18,13 +18,20 @@ const GameInterface = () => {
     isPaused: state.isPaused
   }));
   
+  // Добавим лог для отладки
+  console.log('Активная вкладка:', activeView);
+  
   // Game loop - runs the tick function based on game speed
   useEffect(() => {
     if (isPaused) return;
     
     // 10 seconds per month at normal speed (10000ms), adjusted by gameSpeed
     const tickInterval = setInterval(() => {
-      tick();
+      if (typeof tick === 'function') {
+        tick();
+      } else {
+        console.warn('Функция tick не определена');
+      }
     }, 10000 / gameSpeed); 
     
     return () => clearInterval(tickInterval);
@@ -32,6 +39,8 @@ const GameInterface = () => {
   
   // Render the active view
   const renderView = () => {
+    console.log('Рендерим вкладку:', activeView);
+    
     switch (activeView) {
       case 'dashboard':
         return <Dashboard />;
