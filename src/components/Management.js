@@ -25,7 +25,7 @@ const Management = () => {
   // Calculate expenses
   const expenses = calculateExpenses(company);
   
-  // Calculate required resources
+  // Calculate total users across all products
   const totalUsers = company.products.reduce((sum, product) => {
     if (!product.isInDevelopment) {
       return sum + product.users;
@@ -33,8 +33,9 @@ const Management = () => {
     return sum;
   }, 0);
   
+  // Calculate required resources
   const requiredEmployeesForSupport = Math.ceil(totalUsers / 2000);
-  const requiredServers = Math.ceil(totalUsers / 100);
+  const requiredServers = Math.ceil(totalUsers / 300); // Now 1 server per 300 users
   
   // Additional employees for product development/updates
   const additionalEmployees = company.products.reduce((sum, product) => {
@@ -107,12 +108,18 @@ const Management = () => {
   const calculateMarketingEfficiency = () => {
     if (marketingBudget <= 0) return 0;
     
-    // Simplified calculation: 1 user costs $5 to acquire
-    const expectedUsers = Math.floor(marketingBudget / 5);
+    // User acquisition cost changes based on total market size
+    const costPerUser = totalUsers > 100000000 ? 20 : 5;
+    const expectedUsers = Math.floor(marketingBudget / costPerUser);
     return expectedUsers;
   };
   
   const expectedNewUsers = calculateMarketingEfficiency();
+  
+  // Calculate tax information
+  const profitBeforeTax = company.monthlyIncome - (expenses.employees + expenses.servers + expenses.marketing);
+  const taxRate = 23; // 23%
+  const estimatedTax = profitBeforeTax > 0 ? profitBeforeTax * (taxRate / 100) : 0;
   
   return (
     <div>
@@ -174,11 +181,12 @@ const Management = () => {
               }
             </p>
             <p><strong>Monthly Cost:</strong> {formatCurrency(expenses.servers)}</p>
+            <p><strong>Auto-Scaling:</strong> Servers are now automatically provisioned (1 server per 300 users)</p>
           </div>
           
           <div className="resource-action">
             <div className="form-group">
-              <label htmlFor="serverCount">Number of Servers to Add:</label>
+              <label htmlFor="serverCount">Number of Additional Servers to Deploy:</label>
               <input
                 type="number"
                 id="serverCount"
@@ -204,7 +212,9 @@ const Management = () => {
           <div className="resource-info">
             <p><strong>Current Monthly Budget:</strong> {formatCurrency(company.marketingBudget)}</p>
             <p><strong>Estimated New Users/Month:</strong> {formatNumber(expectedNewUsers)}</p>
-            <p><strong>Acquisition Cost:</strong> $5 per user</p>
+            <p><strong>Acquisition Cost:</strong> ${totalUsers > 100000000 ? '20' : '5'} per user 
+              {totalUsers > 100000000 && <span style={{ color: '#e74c3c' }}> (High Market Saturation)</span>}
+            </p>
           </div>
           
           <div className="resource-action">
@@ -244,15 +254,32 @@ const Management = () => {
           </div>
           
           <div className="summary-row">
-            <div className="summary-label">Monthly Expenses:</div>
-            <div className="summary-value">{formatCurrency(company.monthlyExpenses)}</div>
+            <div className="summary-label">Monthly Expenses (pre-tax):</div>
+            <div className="summary-value">{formatCurrency(expenses.employees + expenses.servers + expenses.marketing)}</div>
           </div>
           
           <div className="summary-row">
-            <div className="summary-label">Monthly Balance:</div>
-            <div className={`summary-value ${company.monthlyIncome - company.monthlyExpenses >= 0 ? 'positive' : 'negative'}`}>
-              {formatCurrency(company.monthlyIncome - company.monthlyExpenses)}
+            <div className="summary-label">Monthly Profit Before Tax:</div>
+            <div className={`summary-value ${profitBeforeTax >= 0 ? 'positive' : 'negative'}`}>
+              {formatCurrency(profitBeforeTax)}
             </div>
+          </div>
+          
+          <div className="summary-row">
+            <div className="summary-label">Estimated Tax (23%):</div>
+            <div className="summary-value">{formatCurrency(estimatedTax)}</div>
+          </div>
+          
+          <div className="summary-row">
+            <div className="summary-label">Monthly Balance After Tax:</div>
+            <div className={`summary-value ${profitBeforeTax - estimatedTax >= 0 ? 'positive' : 'negative'}`}>
+              {formatCurrency(profitBeforeTax - estimatedTax)}
+            </div>
+          </div>
+          
+          <div className="summary-row" style={{ marginTop: '15px', borderTop: '1px solid #eee', paddingTop: '15px' }}>
+            <div className="summary-label">Total Taxes Paid To Date:</div>
+            <div className="summary-value">{formatCurrency(company.taxesPaid || 0)}</div>
           </div>
         </div>
       </div>
