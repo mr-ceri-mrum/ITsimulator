@@ -312,6 +312,60 @@ const createCompanySlice = (set, get) => ({
   },
   
   /**
+   * Сокращает штат команды продукта
+   * @param {string} productId - ID продукта
+   * @param {number} amount - Количество сотрудников для сокращения (если не указано, то на 50%)
+   * @returns {boolean} - Успешно ли выполнена операция
+   */
+  reduceProductStaff: (productId, amount = null) => {
+    console.log('Сокращение персонала продукта:', productId, amount);
+    
+    set(state => {
+      const productIndex = state.company.products.findIndex(p => p.id === productId);
+      
+      // Если продукт не найден, возвращаем текущее состояние
+      if (productIndex === -1 || state.company.products[productIndex].isInDevelopment) return state;
+      
+      const product = state.company.products[productIndex];
+      const currentStaff = product.employees || 0;
+      
+      // Если не указано конкретное значение, сокращаем на 50%
+      let reduceAmount = amount !== null ? amount : Math.floor(currentStaff * 0.5);
+      
+      // Не позволяем сократить штат ниже 1 сотрудника
+      reduceAmount = Math.min(reduceAmount, currentStaff - 1);
+      
+      // Если после расчета получается 0 или отрицательное число, ничего не делаем
+      if (reduceAmount <= 0) {
+        if (typeof get().showWarningNotification === 'function') {
+          get().showWarningNotification('Невозможно сократить персонал ниже минимального уровня', 3000);
+        }
+        return state;
+      }
+      
+      // Обновляем продукт со сниженным количеством сотрудников
+      const updatedProducts = [...state.company.products];
+      updatedProducts[productIndex] = {
+        ...product,
+        employees: currentStaff - reduceAmount
+      };
+      
+      if (typeof get().showSuccessNotification === 'function') {
+        get().showSuccessNotification(`Персонал сокращен на ${reduceAmount} сотрудников`, 3000);
+      }
+      
+      return {
+        company: {
+          ...state.company,
+          products: updatedProducts
+        }
+      };
+    });
+    
+    return true;
+  },
+  
+  /**
    * Удаляет продукт из списка продуктов компании
    * @param {string} productId - ID продукта для удаления
    * @returns {boolean} - Успешно ли выполнена операция
