@@ -9,11 +9,19 @@ import { useGameStore } from '../../store';
  * @param {Object} props - Свойства компонента
  * @param {Array} props.notifications - Массив уведомлений для отображения
  */
-const Notifications = ({ notifications }) => {
+const Notifications = ({ notifications = [] }) => {
+  // Проверяем, что notifications - это массив, и если нет, используем пустой массив
+  const notificationArray = Array.isArray(notifications) ? notifications : [];
+  
   // Получаем функцию для удаления уведомлений
   const { removeNotification } = useGameStore((state) => ({
-    removeNotification: state.removeNotification
+    removeNotification: state.removeNotification || (() => console.log('removeNotification не найден'))
   }));
+  
+  // Если нет уведомлений, не рендерим компонент
+  if (notificationArray.length === 0) {
+    return null;
+  }
   
   /**
    * Возвращает CSS-класс на основе типа уведомления
@@ -34,11 +42,20 @@ const Notifications = ({ notifications }) => {
     }
   };
   
+  // Обработчик закрытия уведомления
+  const handleClose = (id) => {
+    if (typeof removeNotification === 'function') {
+      removeNotification(id);
+    } else {
+      console.log('Функция удаления уведомления недоступна');
+    }
+  };
+  
   return (
     <div className="notifications-container">
-      {notifications.map((notification) => (
+      {notificationArray.map((notification) => (
         <div 
-          key={notification.id} 
+          key={notification.id || Math.random()} 
           className={`notification ${getNotificationClass(notification.type)}`}
         >
           <div className="notification-content">
@@ -46,7 +63,7 @@ const Notifications = ({ notifications }) => {
           </div>
           <button 
             className="notification-close" 
-            onClick={() => removeNotification(notification.id)}
+            onClick={() => handleClose(notification.id)}
           >
             &times;
           </button>
