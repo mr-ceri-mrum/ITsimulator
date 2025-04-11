@@ -22,6 +22,12 @@ const BILLION_USERS_THRESHOLD = 1000000000;
  * Создает срез для управления логикой игрового тика
  */
 const createTickSlice = (set, get) => ({
+  // Добавим флаг необходимости обновления сотрудников
+  requiresEmployeeUpdate: false,
+  
+  // Добавим вычисленное количество необходимых сотрудников для информативных целей
+  calculatedRequiredEmployees: 0,
+  
   /**
    * Основная функция обновления игры - выполняется каждый игровой тик
    */
@@ -98,8 +104,10 @@ const createTickSlice = (set, get) => ({
       
       // 4. Расчет финансов
       let monthlyIncome = 0;
-      let requiredEmployees = 0;
       let requiredServers = 0;
+      
+      // Вычисляем НЕОБХОДИМОЕ количество сотрудников (но НЕ изменяем автоматически)
+      let calculatedRequiredEmployees = 0;
       
       // Считаем доходы и ресурсы для каждого продукта
       updatedProducts.forEach(product => {
@@ -108,19 +116,25 @@ const createTickSlice = (set, get) => ({
           const productRevenue = (product.users || 0) * (BUSINESS_METRICS?.REVENUE_PER_USER || 15);
           monthlyIncome += productRevenue;
           
-          // Требуемые сотрудники: 5 на каждые 10,000 пользователей + специальные сотрудники продукта
+          // Расчет необходимого количества сотрудников (но не автоматическое обновление)
           const baseProductEmployees = calculateMinEmployeesForUsers(product.users || 0);
-          const productEmployees = baseProductEmployees + (product.employees || 0);
-          requiredEmployees += productEmployees;
+          const idealProductEmployees = baseProductEmployees + (product.employees || 0);
+          calculatedRequiredEmployees += idealProductEmployees;
           
-          // Требуемые серверы: 1 на каждые 300 пользователей
+          // Требуемые серверы: 1 на каждые 300 пользователей (серверы автоматически обновляются)
           const productServers = Math.ceil((product.users || 0) / (BUSINESS_METRICS?.USERS_PER_SERVER || 300));
           requiredServers += productServers;
         }
       });
       
-      // Расходы
-      const employeeCost = requiredEmployees * (COSTS?.EMPLOYEE_COST || 10000);
+      // Проверка, есть ли необходимость в обновлении количества сотрудников
+      const needsMoreEmployees = calculatedRequiredEmployees > (company.employees || 0);
+      
+      // Используем фактическое количество сотрудников, а не требуемое (не автоматическое увеличение)
+      const currentEmployees = company.employees || 0;
+      
+      // Расходы на основе ТЕКУЩЕГО количества сотрудников, а не требуемого
+      const employeeCost = currentEmployees * (COSTS?.EMPLOYEE_COST || 10000);
       const serverCost = requiredServers * (COSTS?.SERVER_COST || 10);
       const marketingCost = company.marketingBudget || 0;
       
@@ -170,6 +184,17 @@ const createTickSlice = (set, get) => ({
         }
       }
       
+      // Показ уведомления о необходимости нанять больше сотрудников
+      if (needsMoreEmployees && typeof get().showWarningNotification === 'function') {
+        const additionalEmployeesNeeded = calculatedRequiredEmployees - currentEmployees;
+        if (additionalEmployeesNeeded > 5) { // Показываем только если нужно больше 5 новых сотрудников
+          get().showWarningNotification(
+            `Требуется нанять еще ${additionalEmployeesNeeded} сотрудников для поддержки продуктов!`,
+            8000
+          );
+        }
+      }
+      
       // 6. Возвращаем обновленное состояние
       return {
         currentDate: newDate,
@@ -179,14 +204,17 @@ const createTickSlice = (set, get) => ({
           products: updatedProducts,
           cash: newCash,
           valuation: newValuation,
-          employees: requiredEmployees,
+          // Не обновляем сотрудников автоматически
+          // employees: requiredEmployees, <-- удаляем эту строку
           servers: requiredServers,
           monthlyIncome: monthlyIncome,
           monthlyExpenses: totalExpenses,
           monthlyTaxes: taxAmount,
           taxesPaid: (company.taxesPaid || 0) + taxAmount
         },
-        competitors: updatedCompetitors
+        competitors: updatedCompetitors,
+        requiresEmployeeUpdate: needsMoreEmployees,
+        calculatedRequiredEmployees: calculatedRequiredEmployees
       };
     });
   }
