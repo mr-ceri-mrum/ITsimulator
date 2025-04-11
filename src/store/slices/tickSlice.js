@@ -15,6 +15,9 @@ import {
   calculateMinEmployeesForUsers
 } from '../../models/Product';
 
+// Порог в 1 миллиард пользователей для применения особых правил роста
+const BILLION_USERS_THRESHOLD = 1000000000;
+
 /**
  * Создает срез для управления логикой игрового тика
  */
@@ -59,7 +62,7 @@ const createTickSlice = (set, get) => ({
           
           // Базовый рост пользователей в зависимости от качества
           // В зависимости от количества пользователей используем разную логику роста
-          const isBillionUsers = newUsers > 1000000000;
+          const isBillionUsers = newUsers >= BILLION_USERS_THRESHOLD;
           const growthRate = calculateUserGrowthRate(
             { ...product, quality: currentQuality }, 
             isBillionUsers
