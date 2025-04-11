@@ -30,6 +30,8 @@ export const useGameStore = create((set, get) => ({
     monthlyExpenses: 0,
     marketingBudget: 0,
     acquiredCompanies: [], // List of acquired companies
+    taxesPaid: 0, // Track taxes paid
+    monthlyTaxes: 0, // Monthly tax amount
   },
   
   // Market data
@@ -42,7 +44,7 @@ export const useGameStore = create((set, get) => ({
   
   // Initialize the game
   startGame: (companyName) => {
-    const competitors = generateRandomCompanies(150); // Generate 150 AI competitors
+    const competitors = generateRandomCompanies(300); // Generate 300 AI competitors
     
     set({
       gameStarted: true,
@@ -330,6 +332,10 @@ export const useGameStore = create((set, get) => ({
         });
       });
       
+      // Determine user acquisition cost based on market saturation
+      // If total users > 100M, cost increases to $20 per user
+      const userAcquisitionCost = totalActiveUsers > 100000000 ? 20 : 5;
+      
       // Process product users and financials
       let monthlyIncome = 0;
       let monthlyExpenses = 0;
@@ -401,7 +407,7 @@ export const useGameStore = create((set, get) => ({
             const marketSaturation = 1 - Math.min(1, totalActiveUsers / newPotentialUsers);
             
             // Apply diminishing returns to marketing based on saturation
-            const marketingEffectiveness = 5 * marketSaturation;
+            const marketingEffectiveness = userAcquisitionCost * marketSaturation;
             const newUsersFromMarketing = Math.floor(state.company.marketingBudget / marketingEffectiveness);
             
             newUsers += newUsersFromMarketing;
@@ -655,6 +661,9 @@ export const useGameStore = create((set, get) => ({
         };
       });
       
+      // Update total taxes paid
+      const totalTaxesPaid = state.company.taxesPaid + taxAmount;
+      
       return {
         currentDate: newDate,
         potentialUsers: newPotentialUsers,
@@ -666,7 +675,9 @@ export const useGameStore = create((set, get) => ({
           employees: newEmployees,
           servers: requiredServers, // Automatically adjusted servers
           monthlyIncome,
-          monthlyExpenses
+          monthlyExpenses,
+          monthlyTaxes: taxAmount, // Store monthly tax amount
+          taxesPaid: totalTaxesPaid // Update total taxes paid
         },
         competitors: updatedCompetitors
       };
