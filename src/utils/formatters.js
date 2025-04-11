@@ -118,3 +118,58 @@ export const formatPercent = (value, decimals = 1) => {
   
   return `${(value * 100).toFixed(decimals)}%`;
 };
+
+/**
+ * Рассчитывает общие расходы 
+ * @param {Object} company - Объект компании
+ * @returns {number} - Сумма расходов
+ */
+export const calculateExpenses = (company) => {
+  if (!company) return 0;
+  
+  // Базовые расходы на сотрудников
+  const employeeCost = (company.employees || 0) * 10000;
+  
+  // Расходы на сервера
+  const serverCost = (company.servers || 0) * 10;
+  
+  // Маркетинговый бюджет
+  const marketingCost = company.marketingBudget || 0;
+  
+  // Общие расходы без учета налогов
+  return employeeCost + serverCost + marketingCost;
+};
+
+/**
+ * Возвращает CSS-класс на основе качества продукта
+ * @param {number} quality - Качество продукта (0-10)
+ * @returns {string} - CSS-класс
+ */
+export const getQualityClass = (quality) => {
+  if (quality === undefined || quality === null) {
+    return 'quality-unknown';
+  }
+  
+  if (quality >= 9) return 'quality-excellent';
+  if (quality >= 7) return 'quality-good';
+  if (quality >= 5) return 'quality-average';
+  if (quality >= 3) return 'quality-poor';
+  return 'quality-bad';
+};
+
+/**
+ * Возвращает текстовую метку для качества продукта
+ * @param {number} quality - Качество продукта (0-10)
+ * @returns {string} - Текстовая метка
+ */
+export const getQualityLabel = (quality) => {
+  if (quality === undefined || quality === null) {
+    return 'Unknown';
+  }
+  
+  if (quality >= 9) return 'Excellent';
+  if (quality >= 7) return 'Good';
+  if (quality >= 5) return 'Average';
+  if (quality >= 3) return 'Poor';
+  return 'Bad';
+};
