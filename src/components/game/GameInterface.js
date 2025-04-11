@@ -5,15 +5,15 @@ import React from 'react';
 import { useGameStore } from '../../store';
 import useGameTick from '../../hooks/useGameTick';
 
-// Импорт компонентов
-import Header from '../common/Header';
-import Sidebar from '../common/Sidebar';
-import Dashboard from '../dashboard/Dashboard';
-import Products from '../products/Products';
-import Market from '../market/Market';
-import Development from '../development/Development';
-import Management from '../management/Management';
-import Modal from '../common/Modal';
+// Импорт компонентов из их текущего местоположения
+import Header from '../Header';
+import Sidebar from '../Sidebar';
+import Dashboard from '../Dashboard';
+import Products from '../Products';
+import Market from '../Market';
+import Development from '../Development';
+import Management from '../Management';
+import Modal from '../Modal';
 import Notifications from '../common/Notifications';
 
 /**
@@ -77,7 +77,7 @@ const GameInterface = () => {
       {modalContent && <Modal content={modalContent} />}
       
       {/* Компонент для отображения уведомлений */}
-      {notifications.length > 0 && <Notifications notifications={notifications} />}
+      {notifications && notifications.length > 0 && <Notifications notifications={notifications} />}
     </div>
   );
 };
