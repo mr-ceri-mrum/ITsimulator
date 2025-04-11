@@ -9,6 +9,11 @@ import {
   COSTS,
   CORPORATE_TAX_RATE
 } from '../../constants/gameConfig';
+import {
+  calculateUserGrowthRate,
+  calculateQualityDegradation,
+  calculateMinEmployeesForUsers
+} from '../../models/Product';
 
 /**
  * Создает срез для управления логикой игрового тика
@@ -49,15 +54,16 @@ const createTickSlice = (set, get) => ({
           // Для выпущенных продуктов обновляем пользователей
           let newUsers = product.users || 0;
           
-          // Базовый рост пользователей в зависимости от качества
-          let growthRate = 0;
+          // Проверяем деградацию качества со временем
+          const currentQuality = calculateQualityDegradation(product, newDate);
           
-          // Разные коэффициенты роста для разных уровней качества
-          if (product.quality >= 9) growthRate = 0.1;     // 10% рост
-          else if (product.quality >= 7) growthRate = 0.06; // 6% рост
-          else if (product.quality >= 5) growthRate = 0.02; // 2% рост
-          else if (product.quality >= 3) growthRate = -0.01; // 1% падение
-          else growthRate = -0.05;                         // 5% падение
+          // Базовый рост пользователей в зависимости от качества
+          // В зависимости от количества пользователей используем разную логику роста
+          const isBillionUsers = newUsers > 1000000000;
+          const growthRate = calculateUserGrowthRate(
+            { ...product, quality: currentQuality }, 
+            isBillionUsers
+          );
           
           // Применяем коэффициент роста
           newUsers = Math.floor(newUsers * (1 + growthRate));
@@ -65,7 +71,7 @@ const createTickSlice = (set, get) => ({
           // Добавляем пользователей от маркетинга, если есть бюджет
           if (company.marketingBudget > 0) {
             // Стоимость привлечения одного пользователя
-            const acquisitionCost = newUsers > 1000000 ? 20 : 5;
+            const acquisitionCost = newUsers > 100000000 ? 20 : 5;
             
             // Новые пользователи от маркетинга
             const marketingUsers = Math.floor(company.marketingBudget / acquisitionCost);
@@ -76,8 +82,12 @@ const createTickSlice = (set, get) => ({
           const maxUsers = newPotentialUsers * 0.4; // 40% максимум от всех потенциальных
           newUsers = Math.min(newUsers, maxUsers);
           
+          // Предотвращаем отрицательное число пользователей
+          newUsers = Math.max(0, newUsers);
+          
           return {
             ...product,
+            quality: currentQuality,
             users: newUsers
           };
         }
@@ -95,12 +105,13 @@ const createTickSlice = (set, get) => ({
           const productRevenue = (product.users || 0) * (BUSINESS_METRICS?.REVENUE_PER_USER || 15);
           monthlyIncome += productRevenue;
           
-          // Требуемые сотрудники: 1 на каждые 2000 пользователей + текущие сотрудники продукта
-          const productEmployees = Math.ceil((product.users || 0) / 2000) + (product.employees || 0);
+          // Требуемые сотрудники: 5 на каждые 10,000 пользователей + специальные сотрудники продукта
+          const baseProductEmployees = calculateMinEmployeesForUsers(product.users || 0);
+          const productEmployees = baseProductEmployees + (product.employees || 0);
           requiredEmployees += productEmployees;
           
           // Требуемые серверы: 1 на каждые 300 пользователей
-          const productServers = Math.ceil((product.users || 0) / 300);
+          const productServers = Math.ceil((product.users || 0) / (BUSINESS_METRICS?.USERS_PER_SERVER || 300));
           requiredServers += productServers;
         }
       });
