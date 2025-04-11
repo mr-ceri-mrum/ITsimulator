@@ -1,5 +1,5 @@
 import React from 'react';
-import { useGameStore } from '../store/gameStore';
+import { useGameStore } from '../store';
 
 const Sidebar = () => {
   const { activeView, setActiveView } = useGameStore(state => ({
@@ -8,6 +8,7 @@ const Sidebar = () => {
   }));
   
   const handleNavigation = (view) => {
+    console.log('Переключение на:', view); // Добавим лог для отладки
     setActiveView(view);
   };
   
