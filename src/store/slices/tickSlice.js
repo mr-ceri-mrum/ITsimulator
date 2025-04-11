@@ -53,6 +53,9 @@ const createTickSlice = (set, get) => ({
       // Рассчитаем общее необходимое количество сотрудников для всех продуктов
       let totalCalculatedRequired = 0;
       
+      // Подсчитаем общее количество сотрудников в продуктах (product.employees)
+      let totalProductTeamSize = 0;
+      
       // Проверим общее количество пользователей в мире
       const calculateTotalWorldUsers = () => {
         let totalWorldUsers = 0;
@@ -100,9 +103,12 @@ const createTickSlice = (set, get) => ({
           // Проверяем деградацию качества со временем
           const currentQuality = calculateQualityDegradation(product, newDate);
           
+          // Добавляем количество сотрудников в общий счетчик
+          totalProductTeamSize += product.employees || 0;
+          
           // Рассчитываем необходимое количество сотрудников для этого продукта
           const requiredEmployeesForProduct = calculateMinEmployeesForUsers(newUsers);
-          totalCalculatedRequired += requiredEmployeesForProduct + (product.employees || 0);
+          totalCalculatedRequired += requiredEmployeesForProduct;
           
           // Базовый рост пользователей в зависимости от качества
           // В зависимости от количества пользователей используем разную логику роста
@@ -113,9 +119,9 @@ const createTickSlice = (set, get) => ({
           );
           
           // ШТРАФ ЗА НЕДОСТАТОК СОТРУДНИКОВ
-          // Если у нас недостаточно сотрудников, применяем штраф к росту пользователей
-          const currentEmployees = company.employees || 0;
-          const employeeShortageRatio = Math.min(1, currentEmployees / Math.max(1, totalCalculatedRequired));
+          // Если у продукта недостаточно сотрудников, применяем штраф к росту пользователей
+          const currentProductEmployees = product.employees || 0;
+          const employeeShortageRatio = Math.min(1, currentProductEmployees / Math.max(1, requiredEmployeesForProduct));
           
           // Если есть нехватка сотрудников, рост пользователей снижается или отток усиливается
           // Чем больше нехватка, тем больше штраф
@@ -198,8 +204,9 @@ const createTickSlice = (set, get) => ({
           let revenuePerUser = BUSINESS_METRICS?.REVENUE_PER_USER || 15;
           
           // Уменьшаем доход, если не хватает сотрудников (аналогично влиянию на рост)
-          const currentEmployees = company.employees || 0;
-          const employeeShortageRatio = Math.min(1, currentEmployees / Math.max(1, totalCalculatedRequired));
+          const requiredEmployeesForProduct = calculateMinEmployeesForUsers(product.users || 0);
+          const currentProductEmployees = product.employees || 0;
+          const employeeShortageRatio = Math.min(1, currentProductEmployees / Math.max(1, requiredEmployeesForProduct));
           
           if (employeeShortageRatio < 1) {
             // При нехватке сотрудников, доход на пользователя снижается
@@ -223,13 +230,25 @@ const createTickSlice = (set, get) => ({
       // Используем фактическое количество сотрудников, а не требуемое (не автоматическое увеличение)
       const currentEmployees = company.employees || 0;
       
-      // Расходы на основе ТЕКУЩЕГО количества сотрудников, а не требуемого
-      const employeeCost = currentEmployees * (COSTS?.EMPLOYEE_COST || 10000);
+      // ВАЖНО: Расходы на персонал теперь должны включать и сотрудников продуктов
+      // Базовая стоимость сотрудника
+      const employeeCostBase = COSTS?.EMPLOYEE_COST || 10000;
+      
+      // Расходы на сотрудников компании (основной штат)
+      const companyEmployeesCost = currentEmployees * employeeCostBase;
+      
+      // Расходы на команды продуктов (product.employees)
+      const productTeamsCost = totalProductTeamSize * employeeCostBase;
+      
+      // Общие расходы на персонал
+      const totalEmployeeCost = companyEmployeesCost + productTeamsCost;
+      
+      // Остальные расходы
       const serverCost = requiredServers * (COSTS?.SERVER_COST || 10);
       const marketingCost = company.marketingBudget || 0;
       
       // Общие расходы без налогов
-      const preTaxExpenses = employeeCost + serverCost + marketingCost;
+      const preTaxExpenses = totalEmployeeCost + serverCost + marketingCost;
       
       // Прибыль до налогов
       const profitBeforeTax = monthlyIncome - preTaxExpenses;
