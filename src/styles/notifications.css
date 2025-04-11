@@ -1,0 +1,73 @@
+/**
+ * Стили для компонента уведомлений
+ */
+
+.notifications-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 1000;
+  max-width: 350px;
+  width: 100%;
+}
+
+.notification {
+  margin-bottom: 10px;
+  padding: 15px;
+  border-radius: 5px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  animation: slide-in 0.3s ease-out;
+}
+
+@keyframes slide-in {
+  0% {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.notification-content {
+  flex: 1;
+  padding-right: 10px;
+}
+
+.notification-close {
+  background: none;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+}
+
+.notification-close:hover {
+  opacity: 1;
+}
+
+/* Типы уведомлений */
+.notification-info {
+  background-color: #e3f2fd;
+  border-left: 4px solid #2196f3;
+}
+
+.notification-success {
+  background-color: #e8f5e9;
+  border-left: 4px solid #4caf50;
+}
+
+.notification-warning {
+  background-color: #fff8e1;
+  border-left: 4px solid #ff9800;
+}
+
+.notification-error {
+  background-color: #ffebee;
+  border-left: 4px solid #f44336;
+}
