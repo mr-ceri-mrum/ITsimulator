@@ -87,32 +87,48 @@ export const calculateProductQuality = (product, idealDistribution) => {
  * @returns {number} - Месячный коэффициент роста
  */
 export const calculateUserGrowthRate = (product, isBillionUsers = false) => {
-  const quality = product.quality;
+  const quality = product.quality || 0;
   
   if (isBillionUsers) {
     // Особые правила роста для продуктов с более чем 1 миллиардом пользователей
     switch (quality) {
-      case 10: return 0.00083; // ~1% в год
-      case 9: return 0;        // Стабильно
-      case 8: return -0.00583; // ~-7% в год
-      case 7: return -0.01;    // Быстрое снижение
-      case 6: return -0.015;   // Еще быстрее
-      default: return -0.02;   // Еще быстрее для качества < 6
+      case 10: return 0.01;    // +1% в месяц
+      case 9: return 0.005;    // +0.5% в месяц
+      case 8: return 0;        // Стабильно
+      case 7: return -0.005;   // -0.5% в месяц
+      case 6: return -0.01;    // -1% в месяц
+      case 5: return -0.02;    // -2% в месяц
+      case 4: return -0.03;    // -3% в месяц
+      case 3: return -0.04;    // -4% в месяц
+      case 2: return -0.05;    // -5% в месяц
+      case 1: return -0.06;    // -6% в месяц
+      default: return -0.07;   // -7% в месяц
     }
   } else {
-    // Стандартные коэффициенты роста для продуктов с менее чем 1 миллиардом пользователей
+    // Обновленные правила согласно требованиям
+    // * **Оценки продукта:**
+    // * 10: +30% пользователей в месяц
+    // * 9: +28% пользователей в месяц
+    // * 8: +22% пользователей в месяц
+    // * 7: +18% пользователей в месяц
+    // * 6: +2% пользователей в месяц
+    // * 5: -2% пользователей в месяц
+    // * 4: -20% пользователей в месяц
+    // * 3: -35% пользователей в месяц
+    // * 2: -55% пользователей в месяц
+    // * 1: -65% пользователей в месяц
     switch (quality) {
-      case 10: return 0.1;
-      case 9: return 0.08;
-      case 8: return 0.06;
-      case 7: return 0.04;
-      case 6: return 0.01;
-      case 5: return -0.01;
-      case 4: return -0.05;
-      case 3: return -0.1;
-      case 2: return -0.15;
-      case 1: return -0.2;
-      default: return 0;
+      case 10: return 0.30;    // +30% в месяц
+      case 9: return 0.28;     // +28% в месяц
+      case 8: return 0.22;     // +22% в месяц
+      case 7: return 0.18;     // +18% в месяц
+      case 6: return 0.02;     // +2% в месяц
+      case 5: return -0.02;    // -2% в месяц
+      case 4: return -0.20;    // -20% в месяц
+      case 3: return -0.35;    // -35% в месяц
+      case 2: return -0.55;    // -55% в месяц
+      case 1: return -0.65;    // -65% в месяц
+      default: return -0.70;   // -70% в месяц для неизвестного качества
     }
   }
 };
@@ -146,8 +162,24 @@ export const calculateRequiredResources = (product, metrics) => {
     return { employees: 0, servers: 0 };
   }
   
-  const employees = Math.ceil(product.users / metrics.USERS_PER_EMPLOYEE) + product.employees;
-  const servers = Math.ceil(product.users / metrics.USERS_PER_SERVER);
+  // Обновленное правило: на каждые 10к пользователей нужно 5 сотрудников
+  const usersPerFiveEmployees = 10000;
+  const employees = Math.ceil((product.users || 0) / usersPerFiveEmployees * 5) + (product.employees || 0);
+  
+  // Требуемые серверы: 1 на каждые 300 пользователей
+  const servers = Math.ceil((product.users || 0) / (metrics.USERS_PER_SERVER || 300));
   
   return { employees, servers };
+};
+
+/**
+ * Рассчитывает минимальное необходимое количество сотрудников для продукта
+ * @param {number} users - Количество пользователей продукта
+ * @returns {number} - Минимальное количество необходимых сотрудников
+ */
+export const calculateMinEmployeesForUsers = (users) => {
+  if (!users || users <= 0) return 0;
+  
+  // На каждые 10,000 пользователей требуется 5 сотрудников
+  return Math.ceil(users / 10000 * 5);
 };
