@@ -42,8 +42,13 @@ const Dashboard = () => {
   const expenseData = [
     { name: 'Employees', value: expenses.employees },
     { name: 'Servers', value: expenses.servers },
-    { name: 'Marketing', value: expenses.marketing }
+    { name: 'Marketing', value: expenses.marketing },
+    { name: 'Taxes', value: company.monthlyTaxes || 0 }
   ];
+  
+  // Tax information
+  const profitBeforeTax = company.monthlyIncome - (expenses.employees + expenses.servers + expenses.marketing);
+  const taxRate = 23; // 23%
   
   return (
     <div>
@@ -63,6 +68,31 @@ const Dashboard = () => {
             <p><strong>Monthly Expenses:</strong> {formatCurrency(company.monthlyExpenses)}</p>
             <p><strong>Products:</strong> {company.products.filter(p => !p.isInDevelopment).length}</p>
             <p><strong>Total Users:</strong> {formatNumber(totalUsers)}</p>
+          </div>
+        </div>
+        
+        {/* Tax Information Card */}
+        <div className="dashboard-card">
+          <div className="card-header">Tax Information</div>
+          <div>
+            <p><strong>Current Tax Rate:</strong> {taxRate}%</p>
+            <p><strong>Monthly Profit Before Tax:</strong> {formatCurrency(profitBeforeTax)}</p>
+            <p><strong>Monthly Tax:</strong> {formatCurrency(company.monthlyTaxes || 0)}</p>
+            <p><strong>Effective Tax Rate:</strong> {
+              profitBeforeTax > 0 
+                ? ((company.monthlyTaxes || 0) / profitBeforeTax * 100).toFixed(1) + '%' 
+                : 'N/A (No Profit)'
+            }</p>
+            <p><strong>Total Taxes Paid:</strong> {formatCurrency(company.taxesPaid || 0)}</p>
+            
+            <div style={{ borderTop: '1px solid #eee', marginTop: '10px', paddingTop: '10px' }}>
+              <p><strong>Marketing Cost per User:</strong> {
+                totalUsers > 100000000 
+                  ? '$20.00 (High Market Saturation)' 
+                  : '$5.00 (Normal)'
+              }</p>
+              <p><strong>Acquisitions:</strong> {company.acquiredCompanies ? company.acquiredCompanies.length : 0}</p>
+            </div>
           </div>
         </div>
         
