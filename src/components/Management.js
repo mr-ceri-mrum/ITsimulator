@@ -1,6 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useGameStore } from '../store/gameStore';
-import { formatCurrency, formatNumber, calculateExpenses } from '../utils/formatters';
+import { 
+  formatCurrency, 
+  formatNumber, 
+  calculateExpenses,
+  formatShortCurrency, 
+  formatShortNumber 
+} from '../utils/formatters';
 
 const Management = () => {
   const { company, hireEmployees, addServers, setMarketingBudget } = useGameStore(state => ({
@@ -13,13 +19,13 @@ const Management = () => {
   // Local state for form inputs
   const [employeeCount, setEmployeeCount] = useState(0);
   const [serverCount, setServerCount] = useState(0);
-  const [marketingBudget, setMarketingBudgetLocal] = useState(company.marketingBudget);
+  const [marketingBudget, setMarketingBudgetLocal] = useState(company.marketingBudget || 0);
   const [employeeError, setEmployeeError] = useState('');
   const [serverError, setServerError] = useState('');
   
   // Update local state when company data changes
   useEffect(() => {
-    setMarketingBudgetLocal(company.marketingBudget);
+    setMarketingBudgetLocal(company.marketingBudget || 0);
   }, [company.marketingBudget]);
   
   // Calculate expenses
@@ -28,7 +34,7 @@ const Management = () => {
   // Calculate total users across all products
   const totalUsers = company.products.reduce((sum, product) => {
     if (!product.isInDevelopment) {
-      return sum + product.users;
+      return sum + (product.users || 0);
     }
     return sum;
   }, 0);
@@ -70,7 +76,7 @@ const Management = () => {
     
     const success = hireEmployees(employeeCount);
     if (!success) {
-      setEmployeeError(`Not enough cash to hire ${employeeCount} employees (Cost: ${formatCurrency(employeeCount * 10000)})`);
+      setEmployeeError(`Not enough cash to hire ${employeeCount} employees (Cost: ${formatShortCurrency(employeeCount * 10000)})`);
     } else {
       setEmployeeError('');
       setEmployeeCount(0);
@@ -86,7 +92,7 @@ const Management = () => {
     
     const success = addServers(serverCount);
     if (!success) {
-      setServerError(`Not enough cash to add ${serverCount} servers (Cost: ${formatCurrency(serverCount * 10)})`);
+      setServerError(`Not enough cash to add ${serverCount} servers (Cost: ${formatShortCurrency(serverCount * 10)})`);
     } else {
       setServerError('');
       setServerCount(0);
@@ -117,9 +123,10 @@ const Management = () => {
   const expectedNewUsers = calculateMarketingEfficiency();
   
   // Calculate tax information
-  const profitBeforeTax = company.monthlyIncome - (expenses.employees + expenses.servers + expenses.marketing);
+  const profitBeforeTax = (company.monthlyIncome || 0) - expenses.total;
   const taxRate = 23; // 23%
   const estimatedTax = profitBeforeTax > 0 ? profitBeforeTax * (taxRate / 100) : 0;
+  const monthlyBalanceAfterTax = profitBeforeTax - estimatedTax;
   
   return (
     <div>
@@ -131,18 +138,18 @@ const Management = () => {
           <div className="card-header">Employee Management</div>
           
           <div className="resource-info">
-            <p><strong>Current Employees:</strong> {company.employees}</p>
-            <p><strong>Required for Support:</strong> {requiredEmployeesForSupport}</p>
-            <p><strong>Required for Development:</strong> {additionalEmployees}</p>
-            <p><strong>Total Required:</strong> {totalRequiredEmployees}</p>
-            <p className={totalRequiredEmployees > company.employees ? 'resource-deficit' : 'resource-surplus'}>
+            <p><strong>Current Employees:</strong> {formatNumber(company.employees)}</p>
+            <p><strong>Required for Support:</strong> {formatNumber(requiredEmployeesForSupport)}</p>
+            <p><strong>Required for Development:</strong> {formatNumber(additionalEmployees)}</p>
+            <p><strong>Total Required:</strong> {formatNumber(totalRequiredEmployees)}</p>
+            <p className={totalRequiredEmployees > (company.employees || 0) ? 'resource-deficit' : 'resource-surplus'}>
               <strong>Status:</strong> {
-                totalRequiredEmployees > company.employees ? 
-                `Understaffed (${totalRequiredEmployees - company.employees} needed)` : 
-                `Well staffed (${company.employees - totalRequiredEmployees} extra)`
+                totalRequiredEmployees > (company.employees || 0) ? 
+                `Understaffed (${formatNumber(totalRequiredEmployees - (company.employees || 0))} needed)` : 
+                `Well staffed (${formatNumber((company.employees || 0) - totalRequiredEmployees)} extra)`
               }
             </p>
-            <p><strong>Monthly Cost:</strong> {formatCurrency(expenses.employees)}</p>
+            <p><strong>Monthly Cost:</strong> {formatShortCurrency(expenses.employees)}</p>
           </div>
           
           <div className="resource-action">
@@ -159,7 +166,7 @@ const Management = () => {
             </div>
             
             <div className="cost-preview">
-              Cost: {formatCurrency(costs.employees)}
+              Cost: {formatShortCurrency(costs.employees)}
             </div>
             
             <button onClick={handleHireEmployees}>Hire Employees</button>
@@ -171,16 +178,16 @@ const Management = () => {
           <div className="card-header">Server Management</div>
           
           <div className="resource-info">
-            <p><strong>Current Servers:</strong> {company.servers}</p>
-            <p><strong>Required Servers:</strong> {requiredServers}</p>
-            <p className={requiredServers > company.servers ? 'resource-deficit' : 'resource-surplus'}>
+            <p><strong>Current Servers:</strong> {formatNumber(company.servers)}</p>
+            <p><strong>Required Servers:</strong> {formatNumber(requiredServers)}</p>
+            <p className={requiredServers > (company.servers || 0) ? 'resource-deficit' : 'resource-surplus'}>
               <strong>Status:</strong> {
-                requiredServers > company.servers ? 
-                `Insufficient (${requiredServers - company.servers} needed)` : 
-                `Well equipped (${company.servers - requiredServers} extra)`
+                requiredServers > (company.servers || 0) ? 
+                `Insufficient (${formatNumber(requiredServers - (company.servers || 0))} needed)` : 
+                `Well equipped (${formatNumber((company.servers || 0) - requiredServers)} extra)`
               }
             </p>
-            <p><strong>Monthly Cost:</strong> {formatCurrency(expenses.servers)}</p>
+            <p><strong>Monthly Cost:</strong> {formatShortCurrency(expenses.servers)}</p>
             <p><strong>Auto-Scaling:</strong> Servers are now automatically provisioned (1 server per 300 users)</p>
           </div>
           
@@ -198,7 +205,7 @@ const Management = () => {
             </div>
             
             <div className="cost-preview">
-              Cost: {formatCurrency(costs.servers)}
+              Cost: {formatShortCurrency(costs.servers)}
             </div>
             
             <button onClick={handleAddServers}>Add Servers</button>
@@ -210,8 +217,8 @@ const Management = () => {
           <div className="card-header">Marketing Management</div>
           
           <div className="resource-info">
-            <p><strong>Current Monthly Budget:</strong> {formatCurrency(company.marketingBudget)}</p>
-            <p><strong>Estimated New Users/Month:</strong> {formatNumber(expectedNewUsers)}</p>
+            <p><strong>Current Monthly Budget:</strong> {formatShortCurrency(company.marketingBudget)}</p>
+            <p><strong>Estimated New Users/Month:</strong> {formatShortNumber(expectedNewUsers)}</p>
             <p><strong>Acquisition Cost:</strong> ${totalUsers > 100000000 ? '20' : '5'} per user 
               {totalUsers > 100000000 && <span style={{ color: '#e74c3c' }}> (High Market Saturation)</span>}
             </p>
@@ -231,7 +238,7 @@ const Management = () => {
             </div>
             
             <div className="marketing-preview">
-              <p>This budget will attract approximately {formatNumber(expectedNewUsers)} new users per month.</p>
+              <p>This budget will attract approximately {formatShortNumber(expectedNewUsers)} new users per month.</p>
             </div>
             
             <button onClick={handleSaveMarketing}>Set Marketing Budget</button>
@@ -245,41 +252,41 @@ const Management = () => {
         <div className="financial-summary">
           <div className="summary-row">
             <div className="summary-label">Cash:</div>
-            <div className="summary-value">{formatCurrency(company.cash)}</div>
+            <div className="summary-value">{formatShortCurrency(company.cash)}</div>
           </div>
           
           <div className="summary-row">
             <div className="summary-label">Monthly Income:</div>
-            <div className="summary-value">{formatCurrency(company.monthlyIncome)}</div>
+            <div className="summary-value">{formatShortCurrency(company.monthlyIncome)}</div>
           </div>
           
           <div className="summary-row">
             <div className="summary-label">Monthly Expenses (pre-tax):</div>
-            <div className="summary-value">{formatCurrency(expenses.employees + expenses.servers + expenses.marketing)}</div>
+            <div className="summary-value">{formatShortCurrency(expenses.total)}</div>
           </div>
           
           <div className="summary-row">
             <div className="summary-label">Monthly Profit Before Tax:</div>
             <div className={`summary-value ${profitBeforeTax >= 0 ? 'positive' : 'negative'}`}>
-              {formatCurrency(profitBeforeTax)}
+              {formatShortCurrency(profitBeforeTax)}
             </div>
           </div>
           
           <div className="summary-row">
             <div className="summary-label">Estimated Tax (23%):</div>
-            <div className="summary-value">{formatCurrency(estimatedTax)}</div>
+            <div className="summary-value">{formatShortCurrency(estimatedTax)}</div>
           </div>
           
           <div className="summary-row">
             <div className="summary-label">Monthly Balance After Tax:</div>
-            <div className={`summary-value ${profitBeforeTax - estimatedTax >= 0 ? 'positive' : 'negative'}`}>
-              {formatCurrency(profitBeforeTax - estimatedTax)}
+            <div className={`summary-value ${monthlyBalanceAfterTax >= 0 ? 'positive' : 'negative'}`}>
+              {formatShortCurrency(monthlyBalanceAfterTax)}
             </div>
           </div>
           
           <div className="summary-row" style={{ marginTop: '15px', borderTop: '1px solid #eee', paddingTop: '15px' }}>
             <div className="summary-label">Total Taxes Paid To Date:</div>
-            <div className="summary-value">{formatCurrency(company.taxesPaid || 0)}</div>
+            <div className="summary-value">{formatShortCurrency(company.taxesPaid)}</div>
           </div>
         </div>
       </div>
