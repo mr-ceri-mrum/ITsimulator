@@ -82,3 +82,17 @@ export const PRODUCT_TYPES = [
   'smartphone', 'console', 'cloud', 'ridesharing', 'ecommerce',
   'ai', 'messenger', 'office', 'antivirus', 'database', 'devtools'
 ];
+
+// Добавим компанию для совместимости
+export const COMPANY = {
+  name: '',
+  founded: new Date(2004, 0, 1),
+  cash: 1000000,
+  valuation: 1000000,
+  employees: 0,
+  servers: 0,
+  products: [],
+  monthlyIncome: 0,
+  monthlyExpenses: 0,
+  marketingBudget: 0
+};
