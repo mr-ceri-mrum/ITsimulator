@@ -3,7 +3,7 @@
  */
 import React, { useEffect } from 'react';
 import { useGameStore } from './store';
-import StartGame from './components/StartGame';
+import StartGame from './components/game/StartGame';
 import GameInterface from './components/game/GameInterface';
 
 /**
