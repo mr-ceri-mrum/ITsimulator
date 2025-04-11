@@ -1,90 +1,99 @@
 import React from 'react';
-import { useGameStore } from '../store/gameStore';
-import { formatCurrency, formatMonthYear } from '../utils/formatters';
+import { useGameStore } from '../store';
+import { formatCurrency, formatNumber, formatDate } from '../utils/formatters';
 
 const Header = () => {
-  const { company, currentDate, togglePause, setGameSpeed, isPaused, gameSpeed } = useGameStore(state => ({
+  const { company, currentDate, gameSpeed, isPaused, togglePause, setGameSpeed } = useGameStore(state => ({
     company: state.company,
     currentDate: state.currentDate,
-    togglePause: state.togglePause,
-    setGameSpeed: state.setGameSpeed,
+    gameSpeed: state.gameSpeed,
     isPaused: state.isPaused,
-    gameSpeed: state.gameSpeed
+    togglePause: state.togglePause,
+    setGameSpeed: state.setGameSpeed
   }));
   
+  // Проверка наличия объекта компании
+  const companyName = company ? company.name : 'Unknown';
+  const companyCash = company ? company.cash : 0;
+  const companyValuation = company ? company.valuation : 0;
+  const companyEmployees = company ? company.employees : 0;
+  const companyIncome = company ? company.monthlyIncome : 0;
+  const companyExpenses = company ? company.monthlyExpenses : 0;
+  
+  // Обработчики нажатия
+  const handleTogglePause = () => {
+    if (typeof togglePause === 'function') {
+      togglePause();
+    } else {
+      console.warn('Функция togglePause не определена в хранилище');
+    }
+  };
+  
+  const handleSetSpeed = (speed) => {
+    if (typeof setGameSpeed === 'function') {
+      setGameSpeed(speed);
+    } else {
+      console.warn('Функция setGameSpeed не определена в хранилище');
+    }
+  };
+  
   return (
-    <header className="game-header">
+    <div className="header">
       <div className="company-info">
-        <h2>{company.name}</h2>
-        <div className="company-stats">
-          <span>Cash: {formatCurrency(company.cash)}</span>
-          &nbsp;|&nbsp;
-          <span>Valuation: {formatCurrency(company.valuation)}</span>
+        <h1>{companyName}</h1>
+        <div className="game-date">{formatDate(currentDate, 'long')}</div>
+      </div>
+      
+      <div className="financial-stats">
+        <div className="stat">
+          <span className="stat-label">Cash:</span>
+          <span className="stat-value">{formatCurrency(companyCash)}</span>
+        </div>
+        <div className="stat">
+          <span className="stat-label">Valuation:</span>
+          <span className="stat-value">{formatCurrency(companyValuation)}</span>
+        </div>
+        <div className="stat">
+          <span className="stat-label">Income:</span>
+          <span className="stat-value">{formatCurrency(companyIncome)}</span>
+        </div>
+        <div className="stat">
+          <span className="stat-label">Expenses:</span>
+          <span className="stat-value">{formatCurrency(companyExpenses)}</span>
+        </div>
+        <div className="stat">
+          <span className="stat-label">Employees:</span>
+          <span className="stat-value">{formatNumber(companyEmployees)}</span>
         </div>
       </div>
       
       <div className="game-controls">
-        <div className="time-controls">
+        <button onClick={handleTogglePause} className="control-button">
+          {isPaused ? '▶ Play' : '⏸ Pause'}
+        </button>
+        
+        <div className="speed-controls">
           <button 
-            onClick={togglePause}
-            className={isPaused ? 'play-button' : 'pause-button'}
-            style={{ 
-              fontWeight: 'bold', 
-              backgroundColor: isPaused ? '#27ae60' : '#e74c3c',
-              padding: '8px 16px',
-              fontSize: '1em'
-            }}
-          >
-            {isPaused ? '▶ Play' : '❚❚ Pause'}
-          </button>
-          
-          <button 
-            onClick={() => setGameSpeed(1)}
+            onClick={() => handleSetSpeed(1)} 
             className={gameSpeed === 1 ? 'active' : ''}
-            style={{ 
-              fontWeight: gameSpeed === 1 ? 'bold' : 'normal',
-              backgroundColor: gameSpeed === 1 ? '#3498db' : '#95a5a6'
-            }}
           >
             1x
           </button>
-          
           <button 
-            onClick={() => setGameSpeed(2)}
+            onClick={() => handleSetSpeed(2)} 
             className={gameSpeed === 2 ? 'active' : ''}
-            style={{ 
-              fontWeight: gameSpeed === 2 ? 'bold' : 'normal',
-              backgroundColor: gameSpeed === 2 ? '#3498db' : '#95a5a6'
-            }}
           >
             2x
           </button>
-          
           <button 
-            onClick={() => setGameSpeed(4)}
+            onClick={() => handleSetSpeed(4)} 
             className={gameSpeed === 4 ? 'active' : ''}
-            style={{ 
-              fontWeight: gameSpeed === 4 ? 'bold' : 'normal',
-              backgroundColor: gameSpeed === 4 ? '#3498db' : '#95a5a6'
-            }}
           >
             4x
           </button>
         </div>
-        
-        <div className="date-display" style={{ 
-          fontSize: '1.2em', 
-          fontWeight: 'bold',
-          padding: '8px 16px',
-          backgroundColor: '#34495e',
-          borderRadius: '4px',
-          color: 'white',
-          marginLeft: '10px'
-        }}>
-          {formatMonthYear(currentDate)}
-        </div>
       </div>
-    </header>
+    </div>
   );
 };
 
