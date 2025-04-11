@@ -16,7 +16,7 @@ const Products = () => {
   // State for delete confirmation
   const [confirmDelete, setConfirmDelete] = useState(null);
   // State for staff reduction confirmation
-  const [confirmReduceStaff, setConfirmReduceStaff] = useState(null);
+  const [confirmStaffReduction, setConfirmStaffReduction] = useState(null);
   
   const productNames = getProductNames();
   
@@ -36,7 +36,7 @@ const Products = () => {
   
   // Handle reduce staff click
   const handleReduceStaffClick = (product) => {
-    setConfirmReduceStaff(product);
+    setConfirmStaffReduction(product);
   };
   
   // Confirm product deletion
@@ -59,16 +59,16 @@ const Products = () => {
   };
   
   // Confirm staff reduction
-  const confirmReduceStaff = () => {
-    if (confirmReduceStaff) {
-      reduceProductStaff(confirmReduceStaff.id);
-      setConfirmReduceStaff(null);
+  const handleConfirmStaffReduction = () => {
+    if (confirmStaffReduction) {
+      reduceProductStaff(confirmStaffReduction.id);
+      setConfirmStaffReduction(null);
     }
   };
   
   // Cancel staff reduction
-  const cancelReduceStaff = () => {
-    setConfirmReduceStaff(null);
+  const cancelStaffReduction = () => {
+    setConfirmStaffReduction(null);
   };
   
   return (
@@ -240,21 +240,21 @@ const Products = () => {
       )}
       
       {/* Reduce Staff Confirmation Modal */}
-      {confirmReduceStaff && (
+      {confirmStaffReduction && (
         <div className="modal-overlay">
           <div className="modal-content" style={{ maxWidth: '400px' }}>
             <div className="modal-header">
               <h3>Confirm Staff Reduction</h3>
-              <button className="modal-close" onClick={cancelReduceStaff}>×</button>
+              <button className="modal-close" onClick={cancelStaffReduction}>×</button>
             </div>
             
             <div className="modal-body">
-              <p>Are you sure you want to reduce the team size for <strong>{confirmReduceStaff.name}</strong>?</p>
+              <p>Are you sure you want to reduce the team size for <strong>{confirmStaffReduction.name}</strong>?</p>
               
               <div>
                 <p><strong>Warning:</strong> This will result in:</p>
                 <ul>
-                  <li>50% reduction in team size (from {confirmReduceStaff.employees} to {Math.max(1, Math.floor(confirmReduceStaff.employees * 0.5))} employees)</li>
+                  <li>50% reduction in team size (from {confirmStaffReduction.employees} to {Math.max(1, Math.floor(confirmStaffReduction.employees * 0.5))} employees)</li>
                   <li>Potentially negative impact on user growth and revenue if staff level is too low</li>
                   <li>Reduced ability to maintain product quality</li>
                 </ul>
@@ -262,13 +262,13 @@ const Products = () => {
               
               <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'space-between' }}>
                 <button 
-                  onClick={cancelReduceStaff}
+                  onClick={cancelStaffReduction}
                   style={{ backgroundColor: '#95a5a6' }}
                 >
                   Cancel
                 </button>
                 <button 
-                  onClick={confirmReduceStaff}
+                  onClick={handleConfirmStaffReduction}
                   style={{ backgroundColor: '#f39c12' }}
                 >
                   Confirm Reduction
